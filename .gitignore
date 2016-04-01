@@ -1,0 +1,7 @@
+# Backup Makefiles
+**/Makefile.bak
+
+# Build output
+*.a
+*.o
+
