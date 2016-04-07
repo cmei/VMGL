@@ -110,8 +110,8 @@ the VM. Just mail me for the dirty trickery.
 -- X forwarding. Independent of the type of VM:
 
 1) In the host, start stub-daemon. As implied, it will daemonize. Log
-   messages go to ~/.stub-daemon.log 2) Set up X forwarding from guest 
-   to host
+   messages go to ~/.stub-daemon.log
+2) Set up X forwarding from guest to host
   2.1) Using ssh
        in the host, ssh -X to guest
   2.2) Traditional
