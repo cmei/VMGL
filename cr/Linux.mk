@@ -11,11 +11,11 @@ CC = gcc
 
 CXXFLAGS          += -DLINUX -Wall -Werror
 CXX_RELEASE_FLAGS += -O3 -DNDEBUG -fno-strict-aliasing -fexpensive-optimizations -funroll-loops -fprefetch-loop-arrays
-CXX_DEBUG_FLAGS   += -g -Werror
+CXX_DEBUG_FLAGS   += -g  # -Werror
 
 CFLAGS            += -DLINUX -Wall -Wmissing-prototypes -Wsign-compare
 C_RELEASE_FLAGS   += -O3 -DNDEBUG -fno-strict-aliasing -fexpensive-optimizations -funroll-loops -fprefetch-loop-arrays
-C_DEBUG_FLAGS     += -g -Werror
+C_DEBUG_FLAGS     += -g  # -Werror
 
 PROFILEFLAGS = -pg -a
 

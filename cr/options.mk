@@ -6,7 +6,7 @@
 # This file lets one set various compile-time options.
 
 # Set RELEASE to 1 to compile with optimizations and without debug info.
-RELEASE=1
+RELEASE=0
 
 # Set THREADSAFE to 1 if you want thread safety for parallel applications.
 THREADSAFE=0
