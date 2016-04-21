@@ -4,7 +4,8 @@
 MAKE = make
 XMKMF = xmkmf
 INSTALL = install
-INSTALL_FLAGS := -s -m 0755
+INSTALL_FLAGS := -m 0755
+# INSTALL_FLAGS := -s -m 0755
 CONFIGURE = ./configure
 RM = rm
 
