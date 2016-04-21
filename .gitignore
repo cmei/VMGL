@@ -5,3 +5,5 @@
 *.a
 *.o
 
+# Eclipse stuff
+.cproject
