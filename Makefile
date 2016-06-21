@@ -10,10 +10,12 @@ CONFIGURE = ./configure
 RM = rm
 
 TOP = $(shell pwd)
-SUBDIRS = cr tightvnc tightvnc/Xvnc
+SUBDIRS = cr
+# SUBDIRS = cr tightvnc tightvnc/Xvnc
 
-DOM0_BIN = vncviewer glstub stub-daemon
-DOMU_BIN = Xvnc
+# DOM0_BIN = vncviewer glstub stub-daemon
+DOM0_BIN = glstub stub-daemon
+DOMU_BIN = # Xvnc
 DOM0_LIB = libcrutil.so libspuload.so liberrorspu.so librenderspu.so
 DOMU_LIB = libcrutil.so libspuload.so liberrorspu.so libvmgl.so libarrayspu.so libfeedbackspu.so libpackspu.so libpassthroughspu.so
 
@@ -31,15 +33,15 @@ all:
 	    $(INSTALL) $(INSTALL_FLAGS) dist/lib/*.so $(TOP)/dist/lib/ ; \
 	    $(INSTALL) $(INSTALL_FLAGS) dist/bin/* $(TOP)/dist/bin/ ; \
 	) || exit 1
-	(cd tightvnc ; \
-	    $(XMKMF) -a ; \
-	    $(MAKE) ; \
-	    $(INSTALL) $(INSTALL_FLAGS) vncviewer/vncviewer ../dist/bin/vncviewer ; \
-	    cd Xvnc ; \
-		$(CONFIGURE) ; \
-		$(MAKE) ; \
-		$(INSTALL) $(INSTALL_FLAGS) programs/Xserver/Xvnc ../../dist/bin/Xvnc ; \
-	) || exit 1
+#	(cd tightvnc ; \
+#	    $(XMKMF) -a ; \
+#	    $(MAKE) ; \
+#	    $(INSTALL) $(INSTALL_FLAGS) vncviewer/vncviewer ../dist/bin/vncviewer ; \
+#	    cd Xvnc ; \
+#		$(CONFIGURE) ; \
+#		$(MAKE) ; \
+#		$(INSTALL) $(INSTALL_FLAGS) programs/Xserver/Xvnc ../../dist/bin/Xvnc ; \
+#	) || exit 1
 
 clean:
 	@for dir in $(SUBDIRS) ; do \
