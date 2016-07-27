@@ -20,7 +20,7 @@ headers.
 For Ubuntu 16.06, run:
 
 ```
-sudo apt install build-essential xutils-dev
+sudo apt install build-essential xutils-dev libjpeg-dev libxaw7-dev
 ```
 
 ## Installation:
