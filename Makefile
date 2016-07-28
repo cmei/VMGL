@@ -9,11 +9,16 @@ INSTALL_FLAGS := -m 0755
 CONFIGURE = ./configure
 RM = rm
 
+# Default
+# DEBUG_FLAGS = -g -O2
+# Debug mode
+DEBUG_FLAGS = -g3 -O0
+
 TOP = $(shell pwd)
 SUBDIRS = cr tightvnc tightvnc/Xvnc
 
 DOM0_BIN = vncviewer glstub stub-daemon
-DOMU_BIN = Xvnc
+DOMU_BIN = Xvnc vncserver
 DOM0_LIB = libcrutil.so libspuload.so liberrorspu.so librenderspu.so
 DOMU_LIB = libcrutil.so libspuload.so liberrorspu.so libvmgl.so libarrayspu.so libfeedbackspu.so libpackspu.so libpassthroughspu.so
 
@@ -23,7 +28,7 @@ else
 INSTALLPATH = /usr/local/
 endif
 
-all:
+all: mk_tightvnc
 	$(INSTALL) -d $(TOP)/dist/lib/
 	$(INSTALL) -d $(TOP)/dist/bin/
 	(cd cr ; \
@@ -31,13 +36,19 @@ all:
 	    $(INSTALL) $(INSTALL_FLAGS) dist/lib/*.so $(TOP)/dist/lib/ ; \
 	    $(INSTALL) $(INSTALL_FLAGS) dist/bin/* $(TOP)/dist/bin/ ; \
 	) || exit 1
+
+.PHONY: mk_tightvnc
+mk_tightvnc:
+	$(INSTALL) -d $(TOP)/dist/lib/
+	$(INSTALL) -d $(TOP)/dist/bin/
 	(cd tightvnc ; \
 	    $(XMKMF) -a ; \
-	    $(MAKE) ; \
+	    $(MAKE) CDEBUGFLAGS="$(DEBUG_FLAGS)" ; \
 	    $(INSTALL) $(INSTALL_FLAGS) vncviewer/vncviewer ../dist/bin/vncviewer ; \
+	    $(INSTALL) $(INSTALL_FLAGS) vncserver.ubuntu_16-04 ../dist/bin/vncserver ; \
 	    cd Xvnc ; \
 		$(CONFIGURE) ; \
-		$(MAKE) ; \
+		$(MAKE) CDEBUGFLAGS="$(DEBUG_FLAGS)" ; \
 		$(INSTALL) $(INSTALL_FLAGS) programs/Xserver/Xvnc ../../dist/bin/Xvnc ; \
 	) || exit 1
 
@@ -67,9 +78,9 @@ install-guest: all
 	for library in $(DOMU_LIB); do \
 	    $(INSTALL) $(TOP)/dist/lib/$$library $(INSTALLPATH)/lib/vmgl/$$library ; \
 	done
-	ln -s libvmgl.so $(INSTALLPATH)/lib/vmgl/libGL.so.1.2
-	ln -s libGL.so.1.2 $(INSTALLPATH)/lib/vmgl/libGL.so.1
-	ln -s libGL.so.1 $(INSTALLPATH)/lib/vmgl/libGL.so
+	ln -s -f libvmgl.so $(INSTALLPATH)/lib/vmgl/libGL.so.1.2
+	ln -s -f libGL.so.1.2 $(INSTALLPATH)/lib/vmgl/libGL.so.1
+	ln -s -f libGL.so.1 $(INSTALLPATH)/lib/vmgl/libGL.so
 	$(INSTALL) $(TOP)/dist/libvmglext.so /usr/lib/xorg/modules/extensions
 	echo "$(INSTALLPATH)/lib/vmgl/" > /etc/ld.so.conf.d/vmgl.conf
 	/sbin/ldconfig
