@@ -1,3 +1,6 @@
+## Copyright (c) H. Andres Lagar-Cavilla, University of Toronto, 2006-2007
+## Modifications to XVnc code made in the context of the vmgl project
+
 XCOMM $XConsortium: Imakefile /main/46 1996/09/28 16:17:59 rws $
 XCOMM $XFree86: xc/include/extensions/Imakefile,v 3.13 1997/01/12 10:39:14 dawes Exp $
 
@@ -20,10 +23,10 @@ LBXHEADERS = lbxbuf.h lbxbufstr.h lbxdeltastr.h lbximage.h lbxopts.h lbxstr.h lb
 #if BuildDPMSLibrary
 DPMSHEADERS = dpms.h dpmsstr.h
 #endif
+VMGLHEADERS = vmgl_ext.h vmgl_extproto.h
 
-EXTRAHEADERS = $(SCREENSAVERHEADERS) $(XF86VIDMODEHEADERS) $(XF86DGAHEADERS) $(XF86MISCHEADERS) $(LBXHEADERS) $(DPMSHEADERS)
 
-
+EXTRAHEADERS = $(SCREENSAVERHEADERS) $(XF86VIDMODEHEADERS) $(XF86DGAHEADERS) $(XF86MISCHEADERS) $(LBXHEADERS) $(DPMSHEADERS) $(VMGLHEADERS)
 
 HEADERS = Xext.h multibuf.h shape.h XShm.h MITMisc.h XI.h XInput.h XIproto.h \
 	XTest.h xtestext1.h XIE.h XIEproto.h XIEprotost.h sync.h \

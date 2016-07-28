@@ -1,3 +1,6 @@
+/* Copyright (c) H. Andres Lagar-Cavilla, University of Toronto, 2006-2007
+ * Modifications to XVnc code made in the context of the vmgl project
+ */
 /***********************************************************
 
 Copyright (c) 1987  X Consortium
@@ -165,6 +168,7 @@ extern void GlxExtensionInit(INITARGS);
 InitExtension GlxExtensionInitPtr = NULL;
 #endif
 #endif
+extern void VMGLExtensionInit(void);
 
 /*ARGSUSED*/
 void
@@ -277,4 +281,5 @@ InitExtensions(argc, argv)
     }
 #endif
 #endif
+    VMGLExtensionInit();
 }

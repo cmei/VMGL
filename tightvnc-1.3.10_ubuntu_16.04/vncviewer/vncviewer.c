@@ -1,3 +1,6 @@
+/* Copyright (c) H. Andres Lagar-Cavilla, University of Toronto, 2006-2007
+ * Modifications to vncviewer code made in the context of the vmgl project
+  */
 /*
  *  Copyright (C) 1999 AT&T Laboratories Cambridge.  All Rights Reserved.
  *
@@ -114,6 +117,11 @@ main(int argc, char **argv)
   ToplevelInitAfterRealization();
 
   DesktopInitAfterRealization();
+
+  /* Spawn daemon thread to listen to vmgl libs */
+  if (appData.glStubPort == 7000)
+    appData.glStubPort += (vncServerPort-5900);
+  daemonStart(desktopWin, (unsigned short) appData.glStubPort, NULL);
 
   /* Tell the VNC server which pixel format and encodings we want to use */
 

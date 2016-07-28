@@ -1,3 +1,5 @@
+## Copyright (c) H. Andres Lagar-Cavilla, University of Toronto, 2006-2007
+## Modifications to vncviewer code made in the context of the vmgl project
 
 #ifdef SunArchitecture
 EXTRA_DEFINES = -D__EXTENSIONS__
@@ -12,7 +14,8 @@ DEFINES = -DMITSHM
 
 ZLIB_INC = -I/usr/local/include
 JPEG_INC = -I/usr/local/include
-INCLUDES = -I../include -I. $(ZLIB_INC) $(JPEG_INC) -I/usr/include
+VMGLSTUB_INC = -I../../cr/stub-daemon/libvmglstubdaemon
+INCLUDES = -I../include -I. $(ZLIB_INC) $(JPEG_INC) $(VMGLSTUB_INC) -I/usr/include
 VNCAUTH_LIB = ../libvncauth/libvncauth.a
 ZLIB_LIB = -L/usr/local/lib -lz
 #ifdef OSF1Architecture
@@ -21,9 +24,10 @@ JPEG_LIB = /usr/local/lib/libjpeg.a
 #else
 JPEG_LIB = -L/usr/local/lib -ljpeg
 #endif
+VMGLSTUB_LIB = ../../cr/dist/lib/libvmglstubdaemon.a -lpthread
 
 DEPLIBS = XawClientDepLibs $(VNCAUTH_LIB)
-LOCAL_LIBRARIES = XawClientLibs $(VNCAUTH_LIB) $(ZLIB_LIB) $(JPEG_LIB)
+LOCAL_LIBRARIES = XawClientLibs $(VNCAUTH_LIB) $(ZLIB_LIB) $(JPEG_LIB) $(VMGLSTUB_LIB)
 
 SRCS = \
   argsresources.c \

@@ -1,3 +1,6 @@
+/* Copyright (c) H. Andres Lagar-Cavilla, University of Toronto, 2006-2007
+ * Modifications to vncviewer code made in the context of the vmgl project
+  */
 /*
  *  Copyright (C) 2000, 2001 Const Kaplinsky.  All Rights Reserved.
  *  Copyright (C) 2000 Tridia Corporation.  All Rights Reserved.
@@ -39,6 +42,8 @@
 #include <X11/Xmu/StdSel.h>
 #include "rfbproto.h"
 #include "caps.h"
+
+#include "vmgl-stub-daemon.h"
 
 extern int endianTest;
 
@@ -108,6 +113,9 @@ typedef struct {
   Bool useRemoteCursor;
   Bool useX11Cursor;
   Bool autoPass;
+
+  /* vmgl */
+  int glStubPort;
 
 } AppData;
 

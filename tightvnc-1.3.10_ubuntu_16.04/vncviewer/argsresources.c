@@ -1,3 +1,6 @@
+/* Copyright (c) H. Andres Lagar-Cavilla, University of Toronto, 2006-2007
+ * Modifications to vncviewer code made in the context of the vmgl project
+ */
 /*
  *  Copyright (C) 2002-2006 Constantin Kaplinsky.  All Rights Reserved.
  *  Copyright (C) 1999 AT&T Laboratories Cambridge.  All Rights Reserved.
@@ -222,7 +225,11 @@ static XtResource appDataResourceList[] = {
    XtOffsetOf(AppData, grabKeyboard), XtRImmediate, (XtPointer) False},
 
   {"autoPass", "AutoPass", XtRBool, sizeof(Bool),
-   XtOffsetOf(AppData, autoPass), XtRImmediate, (XtPointer) False}
+   XtOffsetOf(AppData, autoPass), XtRImmediate, (XtPointer) False},
+   
+  {"glStubPort", "GlStubPort", XtRInt, sizeof(int),
+   XtOffsetOf(AppData, glStubPort), XtRImmediate, (XtPointer) 7000},
+
 };
 
 
@@ -249,7 +256,8 @@ XrmOptionDescRec cmdLineOptions[] = {
   {"-nojpeg",        "*enableJPEG",         XrmoptionNoArg,  "False"},
   {"-nocursorshape", "*useRemoteCursor",    XrmoptionNoArg,  "False"},
   {"-x11cursor",     "*useX11Cursor",       XrmoptionNoArg,  "True"},
-  {"-autopass",      "*autoPass",           XrmoptionNoArg,  "True"}
+  {"-autopass",      "*autoPass",           XrmoptionNoArg,  "True"},
+  {"-glStubPort",     "*glStubPort",        XrmoptionSepArg, 0},
 
 };
 
