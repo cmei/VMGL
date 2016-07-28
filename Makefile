@@ -28,20 +28,17 @@ else
 INSTALLPATH = /usr/local/
 endif
 
-all: mk_tightvnc
+all:
 	$(INSTALL) -d $(TOP)/dist/lib/
 	$(INSTALL) -d $(TOP)/dist/bin/
 	(cd cr ; \
+		set -e ; \
 	    $(MAKE) ; \
 	    $(INSTALL) $(INSTALL_FLAGS) dist/lib/*.so $(TOP)/dist/lib/ ; \
 	    $(INSTALL) $(INSTALL_FLAGS) dist/bin/* $(TOP)/dist/bin/ ; \
-	) || exit 1
-
-.PHONY: mk_tightvnc
-mk_tightvnc:
-	$(INSTALL) -d $(TOP)/dist/lib/
-	$(INSTALL) -d $(TOP)/dist/bin/
+	)
 	(cd tightvnc ; \
+		set -e ; \
 	    $(XMKMF) -a ; \
 	    $(MAKE) CDEBUGFLAGS="$(DEBUG_FLAGS)" ; \
 	    $(INSTALL) $(INSTALL_FLAGS) vncviewer/vncviewer ../dist/bin/vncviewer ; \
@@ -50,7 +47,7 @@ mk_tightvnc:
 		$(CONFIGURE) ; \
 		$(MAKE) CDEBUGFLAGS="$(DEBUG_FLAGS)" ; \
 		$(INSTALL) $(INSTALL_FLAGS) programs/Xserver/Xvnc ../../dist/bin/Xvnc ; \
-	) || exit 1
+	)
 
 clean:
 	@for dir in $(SUBDIRS) ; do \

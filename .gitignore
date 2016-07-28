@@ -7,3 +7,6 @@
 
 # Eclipse stuff
 .cproject
+
+*.sw?
+*.bak
