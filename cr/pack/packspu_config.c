@@ -42,7 +42,6 @@ void setUpServerConnection(char *glStub_str)
 {
     char *glStubPort_str, *newPort_str;
     unsigned short glStubPort, buf[2];
-    int sock;
     struct sockaddr_in serverAddress;
     struct hostent *glStub = NULL;
     size_t bufLen = sizeof(short) * 2;
@@ -57,14 +56,10 @@ void setUpServerConnection(char *glStub_str)
 	crError("Hostname %s unknown",glStub_str);
     glStubPort = (unsigned short) strtoul(glStubPort_str, (char **) NULL, 10);
 	
-    /* Set up TCP connection */
-    sock = socket(AF_INET, SOCK_STREAM, 0);
     crMemset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     crMemcpy((char *) &serverAddress.sin_addr, glStub->h_addr, sizeof(serverAddress.sin_addr));
     serverAddress.sin_port = htons(glStubPort);
-    if (connect(sock, (struct sockaddr *) &serverAddress, sizeof(serverAddress)))
-	crError("Failed connect to %s:%d",glStub_str,glStubPort);
 
     newPort_str = (char *) crAlloc(sizeof(char)*7);
     newPort_str[0] = ':';
@@ -73,6 +68,11 @@ void setUpServerConnection(char *glStub_str)
         pack_spu.secondPort = 0;
         crUShortToString(glStubPort,&(newPort_str[1]),10);
     } else {
+        /* Set up TCP connection */
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (connect(sock, (struct sockaddr *) &serverAddress, sizeof(serverAddress)))
+            crError("Failed connect to %s:%d",glStub_str,glStubPort);
+
         /* Talk just a little bit */
         if ((read(sock, (void *) buf, bufLen)) != ((ssize_t) bufLen))
             crError("Failed to read setup msg from %s:%d",glStub_str,glStubPort);
@@ -82,6 +82,8 @@ void setUpServerConnection(char *glStub_str)
 
         if (pack_spu.secondPort)
             pack_spu.openedXDisplay = XDPY_NEED_CONNECT;
+
+        close(sock);
     }
 	    
     /* Set up global vars */
@@ -89,7 +91,6 @@ void setUpServerConnection(char *glStub_str)
     pack_spu.serverIP = ntohl(serverAddress.sin_addr.s_addr);
 
     /* Done */
-    close(sock);
     glStub_str[strlen(glStub_str)] = ':';
     crFree(glStub_str);
     crFree(newPort_str);
