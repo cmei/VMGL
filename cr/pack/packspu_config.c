@@ -65,20 +65,28 @@ void setUpServerConnection(char *glStub_str)
     serverAddress.sin_port = htons(glStubPort);
     if (connect(sock, (struct sockaddr *) &serverAddress, sizeof(serverAddress)))
 	crError("Failed connect to %s:%d",glStub_str,glStubPort);
-	    
-    /* Talk just a little bit */
-    if ((read(sock, (void *) buf, bufLen)) != ((ssize_t) bufLen))
-	crError("Failed to read setup msg from %s:%d",glStub_str,glStubPort);
-	    
-    /* Set up global vars */
+
     newPort_str = (char *) crAlloc(sizeof(char)*7);
     newPort_str[0] = ':';
-    crUShortToString(ntohs(buf[0]),&(newPort_str[1]),10);
+
+    if (crGetenv("IS_GLSTUB_DAEMON") && crStrcmp(crGetenv("IS_GLSTUB_DAEMON"), "yes") == 0) {
+        pack_spu.secondPort = 0;
+        crUShortToString(glStubPort,&(newPort_str[1]),10);
+    } else {
+        /* Talk just a little bit */
+        if ((read(sock, (void *) buf, bufLen)) != ((ssize_t) bufLen))
+            crError("Failed to read setup msg from %s:%d",glStub_str,glStubPort);
+	    
+        pack_spu.secondPort = ntohs(buf[1]);
+        crUShortToString(ntohs(buf[0]),&(newPort_str[1]),10);
+
+        if (pack_spu.secondPort)
+            pack_spu.openedXDisplay = XDPY_NEED_CONNECT;
+    }
+	    
+    /* Set up global vars */
     pack_spu.name = crStrjoin3("tcpip://", glStub_str, newPort_str);
     pack_spu.serverIP = ntohl(serverAddress.sin_addr.s_addr);
-    pack_spu.secondPort = ntohs(buf[1]);
-    if (pack_spu.secondPort)
-	pack_spu.openedXDisplay = XDPY_NEED_CONNECT;
 
     /* Done */
     close(sock);

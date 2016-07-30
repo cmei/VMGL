@@ -109,6 +109,8 @@ the VM. Just mail me for the dirty trickery.
 
 -- X forwarding. Independent of the type of VM:
 
+0) On the guest, Set IS_GLSTUB_DAEMON=yes
+   (important, otherwise GL app will hang during initialization)
 1) In the host, start stub-daemon. As implied, it will daemonize. Log
    messages go to ~/.stub-daemon.log
 2) Set up X forwarding from guest to host
