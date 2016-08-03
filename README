@@ -152,3 +152,76 @@ for the paranoids among us.
    and advisors.
 
    
+== JAMES' SETUP ==
+This setup is similar to the "X forwarding" setup above.  The goal is the following:
+
+You ssh into the "guest" with X forwarding enables, launch glxgears, and then launch vncviewer
+
+"thin client"
+- This is you ssh-ing with X forwarding from your laptop
+
+"guest":
+- vncviewer: since X forwarding is enabled, the frames are sent back to your laptop
+- glxgears: with no GPU attached to the machine, forwards gl* commands to glstub on host
+
+"host":
+- x11vnc: listens for vncviewer connections from "guest", and forwards keyboard input to xorg
+- glstub: receives incoming glxgears gl* commands and renders them
+- xorg: xorg server running with VMGL extension installed; receives input from x11vnc
+
+To obtain this setup, do the following:
+
+A. INSTALLATION:
+1) "guest"
+   1) Install x11vnc
+      $ sudo apt-get install x11vnc
+   2) Checkout VMGL tag with small bug fix for glstub configuration
+      $ git clone https://github.com/cmei/VMGL.git 
+      $ git checkout james-setup
+   3) Build VMGL, install guest stuff.
+      $ cd VMGL
+      $ sudo make install-guest
+
+2) "host"
+   1) Build VMGL, install host guest stuff.
+      $ cd VMGL
+      $ sudo make install-host
+
+   2) Build Xorg from source with VMGL extension; checkout gpumigration master branch and follow instructions in README:
+      $ git clone git@bitbucket.org:eyaldelara/gpumigration.git gpumigration.master
+      $ cd gpumigration.master
+      $ git checkout master
+      $ vim README.md
+
+B. RUNNING IT
+1) "host"
+   1) Startup Xorg
+      $ x11vnc -display :0 -forever -shared
+      # Note: this cmdline is based on "sudo service lightdm start"; some things may not be required.
+      $ sudo build/bin/Xorg \
+            -core :0 -seat seat0 -auth /var/run/lightdm/root/:0 -nolisten tcp vt7 -novtswitch \
+            -config VMGL/config/xorg/xorg.conf
+
+   2) Startup x11vnc
+      $ x11vnc -display :0 -forever -shared
+
+   3) Run glstub daemon
+      $ CR_SYSTEM_GL_PATH=/usr/lib/nvidia-361 \
+          DISPLAY=:0 \
+          glstub
+
+2) "guest"
+   1) SSH from the "host" _into_ the "guest" so we can forward X commands to display host:0.
+      # From your laptop
+      $ ssh host
+      # Connected to host; now ssh into guest with DISPLAY set so X forwarding gets setup
+      $ DISPLAY=:0 ssh -X guest 
+
+   2) Run glxgears
+      # Note: we need to point glxgears to a libGL.so otherwise it refuses to start;
+      # just hand it the mesa software implementation, since we have no GPU attached.
+      # IS_GLSTUB_DAEMON=yes is part of the bug fix and must be provided, 
+      # otherwise you'll fail to connect.
+      $ IS_GLSTUB_DAEMON=yes \
+          CR_SYSTEM_GL_PATH=/usr/lib/x86_64-linux-gnu/mesa \
+          glxgears
