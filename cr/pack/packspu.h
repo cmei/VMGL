@@ -28,10 +28,12 @@ struct window_info_t {
         GLint visual;
 };
 
+extern char glVersion[100];
+
 struct context_info_t {
 	CRContext *clientState;  /* used to store client-side GL state */
 	GLint serverCtx;         /* context ID returned by server */
-	char glVersion[100];     /* GL_VERSION string */
+	// char glVersion[100];     #<{(| GL_VERSION string |)}>#
 	/* resume state needs */
         GLint shareCtx;
         GLint visual;

@@ -519,7 +519,7 @@ extern void APIENTRY crWindowSize(GLint window, GLint w, GLint h);
 extern void APIENTRY crWindowPosition(GLint window, GLint x, GLint y);
 extern void APIENTRY crWindowShow( GLint window, GLint flag );
 
-typedef int (CR_APIENTRY *CR_PROC)();
+typedef void* CR_PROC;
 CR_PROC APIENTRY crGetProcAddress( const char *name );
 
 

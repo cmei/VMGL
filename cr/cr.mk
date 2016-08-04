@@ -76,7 +76,7 @@ endif
 OBJS    := $(addprefix $(OBJDIR)/, $(FILES))
 OBJS    := $(addsuffix $(OBJSUFFIX), $(OBJS))
 TEMPFILES := *~ \\\#*\\\# so_locations *.pyc tmpAnyDX.a tmpAnyDX.exp load.map shr.o
-APIFILES = $(TOP)/glapi_parser/apiutil.py $(TOP)/glapi_parser/APIspec.txt
+APIFILES = $(TOP)/glapi_parser/apiutil.py $(TOP)/glapi_parser/APIspec.txt $(TOP)/glapi_parser/GLX_API_spec.txt
 
 ifdef LIBRARY
 SHORT_TARGET_NAME = $(LIBRARY)

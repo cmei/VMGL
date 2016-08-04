@@ -264,6 +264,9 @@ stubInit(void)
 
 	/* Load pointers to native OpenGL functions into stub.nativeDispatch */
 	stubInitNativeDispatch();
+
+        /* Load function addresses so that glXGetProcAddress returns glX* function addresses */
+        initProcAddressTable();
 }
 
 

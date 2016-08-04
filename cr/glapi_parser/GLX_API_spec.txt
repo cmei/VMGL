@@ -1,0 +1,256 @@
+
+# GLX
+
+name GetConfig
+return int
+param Display *
+param XVisualInfo *
+param int
+param int *
+props wrapped
+
+name QueryExtension
+return Bool
+param Display *
+param int *
+param int *
+props wrapped
+
+name QueryExtensionsString
+return const char *
+param Display *
+param int
+props wrapped
+
+name QueryVersion
+return Bool
+param Display *dpy
+param int *maj
+param int *min
+props wrapped
+
+name ChooseVisual
+return XVisualInfo *
+param Display *
+param int
+param int *
+props wrapped
+
+name CreateContext
+return GLXContext
+param Display *
+param XVisualInfo *
+param GLXContext
+param Bool
+props wrapped
+
+name UseXFont
+return void
+param Font font
+param int first
+param int count
+param int listBase
+props wrapped
+
+name DestroyContext
+return void
+param Display *
+param GLXContext
+props wrapped
+
+name IsDirect
+return Bool
+param Display *
+param GLXContext
+props wrapped
+
+name MakeCurrent
+return Bool
+param Display *
+param GLXDrawable
+param GLXContext
+props wrapped
+
+name SwapBuffers
+return void
+param Display *
+param GLXDrawable
+props wrapped
+
+name GetProcAddressARB
+param const GLubyte *name
+props wrapped
+
+name GetCurrentDisplay
+return Display *
+param void
+props wrapped
+
+name GetCurrentContext
+return GLXContext
+param void
+props wrapped
+
+name GetCurrentDrawable
+return GLXDrawable
+param void
+props wrapped
+
+name GetClientString
+return char *
+param Display *dpy
+param int name
+props wrapped
+
+name WaitGL
+return void
+param void
+props wrapped
+
+name WaitX
+return void
+param void
+
+name CopyContext
+return void
+param Display *dpy
+param GLXContext src
+param GLXContext dst
+param unsigned long mask
+props wrapped
+
+name glGetString
+return const GLubyte *
+param GLenum
+name JoinSwapGroupNV
+
+name JoinSwapGroupNV
+return Bool
+param Display *dpy
+param GLXDrawable drawable
+param GLuint group
+
+name BindSwapBarrierNV
+return Bool
+param Display *dpy
+param GLuint group
+param GLuint barrier
+
+name QuerySwapGroupNV
+return Bool
+param Display *dpy
+param GLXDrawable drawable
+param GLuint *group
+param GLuint *barrier
+
+name QueryMaxSwapGroupsNV
+return Bool
+param Display *dpy
+param int screen
+param GLuint *maxGroups
+param GLuint *maxBarriers
+
+name QueryFrameCountNV
+return Bool
+param Display *dpy
+param int screen
+param GLuint *count
+
+name ResetFrameCountNV
+return Bool
+param Display *dpy
+param int screen
+
+
+name CreateNewContext
+return GLXContext
+param Display *dpy
+param GLXFBConfig config
+param int renderType
+param GLXContext shareList
+param Bool direct
+category 1.3
+props wrapped
+
+name CreateWindow
+return GLXWindow
+param Display *dpy
+param GLXFBConfig config
+param Window win
+param const int *attrib_list
+category 1.3
+props wrapped
+
+name MakeContextCurrent
+return Bool
+param Display *dpy
+param GLXDrawable draw
+param GLXDrawable read
+param GLXContext ctx
+props wrapped
+
+name ChooseFBConfig
+return GLXFBConfig *
+param Display *dpy
+param int screen
+param const int *attribList
+param int *nitems
+category 1.3
+props wrapped
+
+name GetFBConfigs
+return GLXFBConfig *
+param Display *dpy
+param int screen
+param int *nelements
+category 1.3
+props wrapped
+
+name GetFBConfigAttrib
+return int
+param Display *dpy
+param GLXFBConfig config
+param int attribute
+param int *value
+category 1.3
+props wrapped
+
+name GetVisualFromFBConfig
+return XVisualInfo *
+param Display *dpy
+param GLXFBConfig config
+category 1.3
+props wrapped
+
+name CreatePbuffer
+return GLXPbuffer
+param Display *dpy
+param GLXFBConfig config
+param const int *attribList
+category 1.3
+props wrapped
+
+name DestroyPbuffer
+return void
+param Display *dpy
+param GLXPbuffer pbuf
+category 1.3
+props wrapped
+
+name QueryContext
+return int
+param Display *dpy
+param GLXContext ctx
+param int attribute
+param int *value
+category 1.3
+props wrapped
+
+name QueryDrawable
+return void
+param Display *dpy
+param GLXDrawable draw
+param int attribute
+param unsigned int *value
+category 1.3
+props wrapped

@@ -733,3 +733,50 @@ def PrintRecord(record):
 
 #ProcessSpecFile("APIspec.txt", PrintRecord)
 
+class GLXAPI(object):
+    def __init__(self, filename):
+        self.filename = filename
+        self._parse()
+
+    def _parse(self):
+        self.records = {}
+        with open(self.filename) as f:
+            record = {}
+            for line in f:
+                line = line.rstrip()
+                line = re.sub(r'#.*', '', line)
+                line = re.sub(r'^\s*', '', line)
+                line = re.sub(r'\s*$', '', line)
+
+                if re.search(r'^\s*$', line):
+                    # blank line
+                    if record != {}:
+                        try:
+                            self.records[record['name']] = record
+                        except Exception, e:
+                            import pdb; pdb.set_trace()
+                            raise
+                        record = {}
+                    continue
+                m = re.search(r'name\s+(\w+)', line)
+                if m:
+                    record['name'] = m.group(1)
+                m = re.search(r'return\s+(.*)', line)
+                if m:
+                    record['return'] = m.group(1)
+                m = re.search(r'param\s+(.*)', line)
+                if m:
+                    if 'params' not in record:
+                        record['params'] = []
+                    record['params'].append(m.group(1))
+                m = re.search(r'props\s+(.*)', line)
+                if m:
+                    record['props'] = set(re.split(r'\s+', m.group(1)))
+
+    def props(self, func_name):
+        if 'props' in self.records[func_name]:
+            return self.records[func_name]['props']
+        return set()
+
+def parse_glx(filename="../glapi_parser/GLX_API_spec.txt"):
+    return GLXAPI(filename)
