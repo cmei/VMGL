@@ -89,28 +89,10 @@ stubSetDispatch( SPUDispatchTable *table )
     }
 }
 
-
-/**
- * Create a new _Chromium_ window, not GLX.
- * Called by crWindowCreate() only.
- */
-    GLint
-stubNewWindow( const char *dpyName, GLint visBits )
+void
+initChromiumWindow(const char * dpyName, WindowInfo *winInfo, GLint spuWin)
 {
-    WindowInfo *winInfo;
-    GLint spuWin, size[2];
-
-    spuWin = stub.spu->dispatch_table.WindowCreate( dpyName, visBits );
-    if (spuWin < 0) {
-	return -1;
-    }
-
-    winInfo = (WindowInfo *) crCalloc(sizeof(WindowInfo));
-    if (!winInfo) {
-	stub.spu->dispatch_table.WindowDestroy(spuWin);
-	return -1;
-    }
-
+    GLint size[2];
     winInfo->type = CHROMIUM;
 
     /* Ask the head SPU for the initial window size */
@@ -135,6 +117,52 @@ stubNewWindow( const char *dpyName, GLint visBits )
     winInfo->drawable = (GLXDrawable) spuWin;
 #endif
     winInfo->spuWindow = spuWin;
+}
+
+
+/**
+ * Create a new _Chromium_ window, not GLX.
+ * Called by crWindowCreate() only.
+ */
+    GLint
+stubNewWindow( const char *dpyName, GLint visBits )
+{
+    WindowInfo *winInfo;
+    GLint spuWin;
+
+    spuWin = stub.spu->dispatch_table.WindowCreate( dpyName, visBits );
+    if (spuWin < 0) {
+	return -1;
+    }
+
+    winInfo = (WindowInfo *) crCalloc(sizeof(WindowInfo));
+    if (!winInfo) {
+	stub.spu->dispatch_table.WindowDestroy(spuWin);
+	return -1;
+    }
+
+    initChromiumWindow(dpyName, winInfo, spuWin);
+
+    crHashtableAdd(stub.windowTable, (unsigned int) spuWin, winInfo);
+
+    return spuWin;
+}
+
+GLint stubReuseWindow(  const char *dpyName, GLint visBits, GLint spuWin )
+{
+    WindowInfo *winInfo;
+
+    spuWin = stub.spu->dispatch_table.WindowReuse( dpyName, visBits, spuWin );
+    if (spuWin < 0) {
+	return -1;
+    }
+
+    winInfo = (WindowInfo *) crCalloc(sizeof(WindowInfo));
+    if (!winInfo) {
+	return -1;
+    }
+
+    initChromiumWindow(dpyName, winInfo, spuWin);
 
     crHashtableAdd(stub.windowTable, (unsigned int) spuWin, winInfo);
 
@@ -500,162 +528,162 @@ stubCheckUseChromium( WindowInfo *window )
 GLboolean
 stubMakeCurrent( WindowInfo *window, ContextInfo *context )
 {
-	GLboolean retVal;
+    GLboolean retVal;
 
-	/*
-	 * Get WindowInfo and ContextInfo pointers.
-	 */
+    /*
+     * Get WindowInfo and ContextInfo pointers.
+     */
 
-	if (!context || !window) {
-		if (stub.currentContext)
-			stub.currentContext->currentDrawable = NULL;
-		if (context)
-			context->currentDrawable = NULL;
-		stub.currentContext = NULL;
-		return GL_TRUE;  /* OK */
-	}
+    if (!context || !window) {
+        if (stub.currentContext)
+            stub.currentContext->currentDrawable = NULL;
+        if (context)
+            context->currentDrawable = NULL;
+        stub.currentContext = NULL;
+        return GL_TRUE;  /* OK */
+    }
 
 #ifdef CHROMIUM_THREADSAFE
-	stubCheckMultithread();
+    stubCheckMultithread();
 #endif
 
-	if (context->type == UNDECIDED) {
-		/* Here's where we really create contexts */
+    if (context->type == UNDECIDED) {
+        /* Here's where we really create contexts */
 #ifdef CHROMIUM_THREADSAFE
-		crLockMutex(&stub.mutex);
+        crLockMutex(&stub.mutex);
 #endif
 
-		if (stubCheckUseChromium(window)) {
-			/*
-			 * Create a Chromium context.
-			 */
+        if (stubCheckUseChromium(window)) {
+            /*
+             * Create a Chromium context.
+             */
 #if defined(GLX) || defined(DARWIN)
-			GLint spuShareCtx = context->share ? context->share->spuContext : 0;
+            GLint spuShareCtx = context->share ? context->share->spuContext : 0;
 #else
-      GLint spuShareCtx = 0;
+            GLint spuShareCtx = 0;
 #endif
 
-			CRASSERT(stub.spu);
-			CRASSERT(stub.spu->dispatch_table.CreateContext);
-			context->type = CHROMIUM;
+            CRASSERT(stub.spu);
+            CRASSERT(stub.spu->dispatch_table.CreateContext);
+            context->type = CHROMIUM;
 
-			context->spuContext
-				= stub.spu->dispatch_table.CreateContext( context->dpyName,context->visBits,spuShareCtx );
-			if (window->spuWindow == -1)
-				window->spuWindow = stub.spu->dispatch_table.WindowCreate( window->dpyName, context->visBits );
-		}
-		else {
-			/*
-			 * Create a native OpenGL context.
-			 */
-			if (!InstantiateNativeContext(window, context))
-			{
+            context->spuContext
+                = stub.spu->dispatch_table.CreateContext( context->dpyName,context->visBits,spuShareCtx );
+            if (window->spuWindow == -1)
+                window->spuWindow = stub.spu->dispatch_table.WindowCreate( window->dpyName, context->visBits );
+        }
+        else {
+            /*
+             * Create a native OpenGL context.
+             */
+            if (!InstantiateNativeContext(window, context))
+            {
 #ifdef CHROMIUM_THREADSAFE
-				crUnlockMutex(&stub.mutex);
+                crUnlockMutex(&stub.mutex);
 #endif
-				return 0; /* false */
-			}
-			context->type = NATIVE;
-		}
+                return 0; /* false */
+            }
+            context->type = NATIVE;
+        }
 
 #ifdef CHROMIUM_THREADSAFE
-		crUnlockMutex(&stub.mutex);
+        crUnlockMutex(&stub.mutex);
 #endif
-	}
+    }
 
 
-	if (context->type == NATIVE) {
-		/*
-		 * Native OpenGL MakeCurrent().
-		 */
+    if (context->type == NATIVE) {
+        /*
+         * Native OpenGL MakeCurrent().
+         */
 #if defined(GLX)
-		retVal = (GLboolean) stub.wsInterface.glXMakeCurrent( window->dpy, window->drawable, context->glxContext );
+        retVal = (GLboolean) stub.wsInterface.glXMakeCurrent( window->dpy, window->drawable, context->glxContext );
 #endif
-	}
-	else {
-		/*
-		 * SPU chain MakeCurrent().
-		 */
-		CRASSERT(context->type == CHROMIUM);
-		CRASSERT(context->spuContext >= 0);
+    }
+    else {
+        /*
+         * SPU chain MakeCurrent().
+         */
+        CRASSERT(context->type == CHROMIUM);
+        CRASSERT(context->spuContext >= 0);
 
-		if (context->currentDrawable && context->currentDrawable != window)
-			crWarning("Rebinding context %p to a different window", context);
+        if (context->currentDrawable && context->currentDrawable != window)
+            crWarning("Rebinding context %p to a different window", context);
 
-		if (window->type == NATIVE) {
-			crWarning("Can't rebind a chromium context to a native window\n");
-			retVal = 0;
-		}
-		else {
-			if (window->spuWindow == -1)
-				window->spuWindow = stub.spu->dispatch_table.WindowCreate( window->dpyName, context->visBits );
+        if (window->type == NATIVE) {
+            crWarning("Can't rebind a chromium context to a native window\n");
+            retVal = 0;
+        }
+        else {
+            if (window->spuWindow == -1)
+                window->spuWindow = stub.spu->dispatch_table.WindowCreate( window->dpyName, context->visBits );
 
-			if (window->spuWindow != (GLint)window->drawable)
-				 stub.spu->dispatch_table.MakeCurrent( window->spuWindow, (GLint) window->drawable, context->spuContext );
-			else
-				 stub.spu->dispatch_table.MakeCurrent( window->spuWindow, 0, /* native window handle */ context->spuContext );
+            if (window->spuWindow != (GLint)window->drawable)
+                stub.spu->dispatch_table.MakeCurrent( window->spuWindow, (GLint) window->drawable, context->spuContext );
+            else
+                stub.spu->dispatch_table.MakeCurrent( window->spuWindow, 0, /* native window handle */ context->spuContext );
 
-			retVal = 1;
-		}
-	}
+            retVal = 1;
+        }
+    }
 
-	window->type = context->type;
-	context->currentDrawable = window;
-	stub.currentContext = context;
+    window->type = context->type;
+    context->currentDrawable = window;
+    stub.currentContext = context;
 
-	if (retVal) {
-		/* Now, if we've transitions from Chromium to native rendering, or
-		 * vice versa, we have to change all the OpenGL entrypoint pointers.
-		 */
-		if (context->type == NATIVE) {
-			/* Switch to native API */
-			/*printf("  Switching to native API\n");*/
-			stubSetDispatch(&stub.nativeDispatch);
-		}
-		else if (context->type == CHROMIUM) {
-			/* Switch to stub (SPU) API */
-			/*printf("  Switching to spu API\n");*/
-			stubSetDispatch(&stub.spuDispatch);
-		}
-		else {
-			/* no API switch needed */
-		}
-	}
+    if (retVal) {
+        /* Now, if we've transitions from Chromium to native rendering, or
+         * vice versa, we have to change all the OpenGL entrypoint pointers.
+         */
+        if (context->type == NATIVE) {
+            /* Switch to native API */
+            /*printf("  Switching to native API\n");*/
+            stubSetDispatch(&stub.nativeDispatch);
+        }
+        else if (context->type == CHROMIUM) {
+            /* Switch to stub (SPU) API */
+            /*printf("  Switching to spu API\n");*/
+            stubSetDispatch(&stub.spuDispatch);
+        }
+        else {
+            /* no API switch needed */
+        }
+    }
 
-	if (!window->width && window->type == CHROMIUM) {
-		/* One time window setup */
-		int x, y;
-		unsigned int winW, winH;
+    if (!window->width && window->type == CHROMIUM) {
+        /* One time window setup */
+        int x, y;
+        unsigned int winW, winH;
 
-		stubGetWindowGeometry( window, &x, &y, &winW, &winH );
+        stubGetWindowGeometry( window, &x, &y, &winW, &winH );
 
-		/* If we're not using GLX (no app window) we'll always get
-		 * a width and height of zero here.  In that case, skip the viewport
-		 * call since we're probably using a tilesort SPU with fake_window_dims
-		 * which the tilesort SPU will use for the viewport.
-		 */
-		window->width = winW;
-		window->height = winH;
-		if (stub.trackWindowSize)
-			stub.spuDispatch.WindowSize( window->spuWindow, winW, winH );
-		if (winW > 0 && winH > 0)
-			stub.spu->dispatch_table.Viewport( 0, 0, winW, winH );
-	}
+        /* If we're not using GLX (no app window) we'll always get
+         * a width and height of zero here.  In that case, skip the viewport
+         * call since we're probably using a tilesort SPU with fake_window_dims
+         * which the tilesort SPU will use for the viewport.
+         */
+        window->width = winW;
+        window->height = winH;
+        if (stub.trackWindowSize)
+            stub.spuDispatch.WindowSize( window->spuWindow, winW, winH );
+        if (winW > 0 && winH > 0)
+            stub.spu->dispatch_table.Viewport( 0, 0, winW, winH );
+    }
 
-	/* Update window mapping state.
-	 * Basically, this lets us hide render SPU windows which correspond
-	 * to unmapped application windows.  Without this, perfly (for example)
-	 * opens *lots* of temporary windows which otherwise clutter the screen.
-	 */
-	if (stub.trackWindowVisibility && window->type == CHROMIUM && window->drawable) {
-		const int mapped = stubIsWindowVisible(window);
-		if (mapped != window->mapped) {
-			stub.spu->dispatch_table.WindowShow(window->spuWindow, mapped);
-			window->mapped = mapped;
-		}
-	}
+    /* Update window mapping state.
+     * Basically, this lets us hide render SPU windows which correspond
+     * to unmapped application windows.  Without this, perfly (for example)
+     * opens *lots* of temporary windows which otherwise clutter the screen.
+     */
+    if (stub.trackWindowVisibility && window->type == CHROMIUM && window->drawable) {
+        const int mapped = stubIsWindowVisible(window);
+        if (mapped != window->mapped) {
+            stub.spu->dispatch_table.WindowShow(window->spuWindow, mapped);
+            window->mapped = mapped;
+        }
+    }
 
-	return retVal;
+    return retVal;
 }
 
 

@@ -42,7 +42,7 @@ PACK_STRING = (PACK)
 
 include $(TOP)/cr.mk
 
-packspu.c: pack.py packspu_special packspu_unimplemented_special packspu_proto.h $(APIFILES)
+packspu.c: pack.py packspu_special packspu_unimplemented_special packspu_proto.h $(TOP)/include/cr_packfunctions.h $(APIFILES)
 	@$(ECHO) Building the Pack SPU
 	@$(PYTHON) pack.py > $@
 

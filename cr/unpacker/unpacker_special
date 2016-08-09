@@ -94,6 +94,7 @@ CombinerStageParameterfvNV
 ChromiumParametervCR
 CreateContext
 WindowCreate
+WindowReuse
 AreTexturesResident
 LoadTransposeMatrixfARB
 LoadTransposeMatrixdARB

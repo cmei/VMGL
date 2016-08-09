@@ -69,7 +69,7 @@ opengl.def: defs.py $(APIFILES)
 	@$(ECHO) "Creating the defs file..."
 	@$(PYTHON) defs.py > opengl.def
 
-getprocaddress.c: getprocaddress.py $(APIFILES)
+getprocaddress.c: getprocaddress.py $(TOP)/include/cr_packfunctions.h $(APIFILES)
 	@$(ECHO) "Creating crGetProcAddress"
 	@$(PYTHON) getprocaddress.py > getprocaddress.c
 

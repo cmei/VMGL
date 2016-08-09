@@ -196,4 +196,7 @@ extern GLint RENDER_APIENTRY renderspuCreateContext( const char *dpyname, GLint 
 extern void RENDER_APIENTRY renderspuMakeCurrent(GLint crWindow, GLint nativeWindow, GLint ctx);
 extern void RENDER_APIENTRY renderspuSwapBuffers( GLint window, GLint flags );
 
+/* util */
+GLboolean WindowExists( Display *dpy, Window w );
+
 #endif /* CR_RENDERSPU_H */

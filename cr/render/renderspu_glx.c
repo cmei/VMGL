@@ -53,7 +53,7 @@ WindowExistsErrorHandler( Display *dpy, XErrorEvent *xerr )
 	return 0;
 }
 
-static GLboolean
+GLboolean
 WindowExists( Display *dpy, Window w )
 {
 	XWindowAttributes xwa;
@@ -472,8 +472,8 @@ renderspu_SystemInitVisual( VisualInfo *visual )
 		if (!visual->visual) {
 			char s[1000];
 			renderspuMakeVisString( visual->visAttribs, s );
-			crWarning("Render SPU: Display %s doesn't have the necessary visual: %s",
-								dpyName, s );
+			crWarning("Render SPU: Display %s doesn't have the necessary visual (visBits = 0x%x): %s",
+								dpyName, visual->visAttribs, s );
 			XCloseDisplay(visual->dpy);
 			return GL_FALSE;
 		}
@@ -1133,7 +1133,7 @@ renderspu_SystemMakeCurrent( WindowInfo *window, GLint nativeWindow,
 	CRASSERT(render_spu.ws.glXMakeCurrent);
 	window->appWindow = nativeWindow;
 
-	/*crDebug("%s nativeWindow=0x%x", __FUNCTION__, (int) nativeWindow);*/
+	crDebug("%s nativeWindow=0x%x", __FUNCTION__, (int) nativeWindow);
 
 #ifdef USE_OSMESA
 	if (render_spu.use_osmesa) {
@@ -1160,6 +1160,10 @@ renderspu_SystemMakeCurrent( WindowInfo *window, GLint nativeWindow,
 			 * We might have to call glXMakeCurrent(dpy, 0, 0) to unbind
     			 * the context from the window before destroying it. -Brian
 			 */
+#if 0
+                        crDebug("calling glXMakecurrent(%p, 0x%x, 0x%x)",
+                                window->visual->dpy, 0, 0);
+#endif
 			render_spu.ws.glXMakeCurrent(window->visual->dpy, 0, 0);
 			renderspu_SystemDestroyWindow( window );
 
@@ -1225,9 +1229,14 @@ renderspu_SystemMakeCurrent( WindowInfo *window, GLint nativeWindow,
 
 				/* OK, this should work */
 				window->nativeWindow = (Window) nativeWindow;
+#if 0
+                                crDebug("calling glXMakecurrent(%p, 0x%x, 0x%x)",
+                                        window->visual->dpy,
+                                        (int) window->nativeWindow, (int) context->context );
+#endif
 				b = render_spu.ws.glXMakeCurrent( window->visual->dpy,
-																					window->nativeWindow,
-																					context->context );
+                                        window->nativeWindow,
+                                        context->context );
 				CRASSERT(b);
 #if !USE_GLX_COPYCONTEXT
 				if (recreated) {
@@ -1242,8 +1251,13 @@ renderspu_SystemMakeCurrent( WindowInfo *window, GLint nativeWindow,
 									(unsigned int) nativeWindow,
 									DisplayString(window->visual->dpy));
 				CRASSERT(window->window);
-				b = render_spu.ws.glXMakeCurrent( window->visual->dpy,
-																			window->window, context->context );
+#if 0
+                                crDebug("calling glXMakecurrent(%p, 0x%x, 0x%x)",
+                                        window->visual->dpy,
+                                        (int) window->window, (int) context->context );
+#endif
+                                b = render_spu.ws.glXMakeCurrent( window->visual->dpy,
+                                        window->window, context->context );
 				CRASSERT(b);
 			}
 		}

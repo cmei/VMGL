@@ -742,7 +742,16 @@ class GLXAPI(object):
         self.records = {}
         with open(self.filename) as f:
             record = {}
+            def put(i, d, field, var):
+                if field not in d:
+                    d[field] = var
+                    return
+                raise RuntimeError("ERROR: line {i} of {filename}; entry has duplicate {field}".format(
+                    i=i, filename=self.filename, field=field))
+        
+            i = 0
             for line in f:
+                i += 1
                 line = line.rstrip()
                 line = re.sub(r'#.*', '', line)
                 line = re.sub(r'^\s*', '', line)
@@ -751,19 +760,15 @@ class GLXAPI(object):
                 if re.search(r'^\s*$', line):
                     # blank line
                     if record != {}:
-                        try:
-                            self.records[record['name']] = record
-                        except Exception, e:
-                            import pdb; pdb.set_trace()
-                            raise
+                        put(i, self.records, record['name'], record)
                         record = {}
                     continue
                 m = re.search(r'name\s+(\w+)', line)
                 if m:
-                    record['name'] = m.group(1)
+                    put(i, record, 'name', m.group(1))
                 m = re.search(r'return\s+(.*)', line)
                 if m:
-                    record['return'] = m.group(1)
+                    put(i, record, 'return', m.group(1))
                 m = re.search(r'param\s+(.*)', line)
                 if m:
                     if 'params' not in record:
@@ -771,7 +776,7 @@ class GLXAPI(object):
                     record['params'].append(m.group(1))
                 m = re.search(r'props\s+(.*)', line)
                 if m:
-                    record['props'] = set(re.split(r'\s+', m.group(1)))
+                    put(i, record, 'props', set(re.split(r'\s+', m.group(1))))
 
     def props(self, func_name):
         if 'props' in self.records[func_name]:

@@ -154,10 +154,8 @@ renderspuCreateContext(const char *dpyName, GLint visBits, GLint shareCtx)
 	crHashtableAdd(render_spu.contextTable, render_spu.context_id, context);
 	render_spu.context_id++;
 
-	/*
 	crDebug("Render SPU: CreateContext(%s, 0x%x) returning %d",
 					dpyName, visBits, context->id);
-	*/
 
 	return context->id;
 }
@@ -187,9 +185,7 @@ renderspuMakeCurrent(GLint crWindow, GLint nativeWindow, GLint ctx)
 	WindowInfo *window;
 	ContextInfo *context;
 
-	/*
 	crDebug("%s win=%d native=0x%x ctx=%d", __FUNCTION__, crWindow, (int) nativeWindow, ctx);
-	*/
 
 	window = (WindowInfo *) crHashtableSearch(render_spu.windowTable, crWindow);
 	context = (ContextInfo *) crHashtableSearch(render_spu.contextTable, ctx);
@@ -255,12 +251,10 @@ renderspuMakeCurrent(GLint crWindow, GLint nativeWindow, GLint ctx)
  * Window functions
  */
 
-GLint RENDER_APIENTRY
-renderspuWindowCreate( const char *dpyName, GLint visBits )
+static int initRenderspuWindow(WindowInfo** winInfo, VisualInfo **visInfo, GLboolean *showIt, const char * dpyName, GLint visBits)
 {
 	WindowInfo *window;
 	VisualInfo *visual;
-	GLboolean showIt;
 
 	if (!dpyName || crStrlen(render_spu.display_string) > 0)
 		dpyName = render_spu.display_string;
@@ -290,9 +284,9 @@ renderspuWindowCreate( const char *dpyName, GLint visBits )
 	window->height = render_spu.defaultHeight;
 
 	if ((render_spu.render_to_app_window || render_spu.render_to_crut_window) && !crGetenv("CRNEWSERVER"))
-		showIt = 0;
+		*showIt = 0;
 	else
-		showIt = window->id > 0;
+		*showIt = window->id > 0;
 
 	/* Set window->title, replacing %i with the window ID number */
 	{
@@ -313,6 +307,82 @@ renderspuWindowCreate( const char *dpyName, GLint visBits )
 			window->title = crStrdup(render_spu.window_title);
 		}
 	}
+
+        *winInfo = window;
+        *visInfo = visual;
+        return 0;
+}
+
+GLint RENDER_APIENTRY
+renderspuWindowId( GLint crWindowId )
+{
+    WindowInfo * winInfo = (WindowInfo *) crHashtableSearch(render_spu.windowTable, crWindowId);
+    if (winInfo == NULL) {
+        crDebug("%s(crWindowId=0x%x) = 0x%x (FAIL)", __func__, crWindowId, -1);
+        return -1;
+    }
+    GLint xWindowId = winInfo->window;
+    crDebug("%s(crWindowId=0x%x) = 0x%x", __func__, crWindowId, xWindowId);
+    return xWindowId;
+}
+
+int 
+renderspu_WindowExists(  char *dpyName, GLint window )
+{
+    int err, ret;
+    if (!dpyName || crStrlen(render_spu.display_string) > 0)
+        dpyName = render_spu.display_string;
+
+    Display* dpy = XOpenDisplay(dpyName);
+    CRASSERT(dpy);
+
+    ret = WindowExists(dpy, window);
+
+    err = XCloseDisplay(dpy);
+    CRASSERT(err == 0);
+
+    return ret;
+}
+
+GLint RENDER_APIENTRY
+renderspuWindowReuse(  const char *dpyName, GLint visBits, GLint window )
+{
+	WindowInfo *winInfo = NULL;
+	VisualInfo *visInfo = NULL;
+	GLboolean showIt;
+
+        if (!renderspu_WindowExists(dpyName, window)) {
+            // Increment window id anyways to preserve ids used before resume.
+            // This ensures that during resume, we don't need to rebuild hashtable private 
+            // to different SPU layers.
+            render_spu.window_id++;
+            crDebug("Cannot reuse xwindow 0x%x; it does not exist anymore.", window);
+            return -1;
+        }
+
+        int err = initRenderspuWindow(&winInfo, &visInfo, &showIt, dpyName, visBits);
+        if (err)
+            return err;
+
+        winInfo->visual = visInfo;
+        winInfo->window = window;
+	winInfo->nativeWindow = 0;
+        winInfo->visible = showIt;
+
+        crDebug("Reuse xwindow 0x%x; crWindowId = 0x%x", window, winInfo->id);
+	return winInfo->id;
+}
+
+GLint RENDER_APIENTRY
+renderspuWindowCreate( const char *dpyName, GLint visBits )
+{
+	WindowInfo *window = NULL;
+	VisualInfo *visual = NULL;
+	GLboolean showIt;
+
+        int err = initRenderspuWindow(&window, &visual, &showIt, dpyName, visBits);
+        if (err)
+            return err;
 
 	/*
 	crDebug("Render SPU: Creating window (visBits=0x%x, id=%d)", visBits, window->id);
@@ -1017,6 +1087,7 @@ renderspuCreateFunctions(SPUNamedFunctionTable table[])
 	FILLIN( "DestroyContext", renderspuDestroyContext );
 	FILLIN( "MakeCurrent", renderspuMakeCurrent );
 	FILLIN( "WindowCreate", renderspuWindowCreate );
+	FILLIN( "WindowReuse", renderspuWindowReuse );
 	FILLIN( "WindowDestroy", renderspuWindowDestroy );
 	FILLIN( "WindowSize", renderspuWindowSize );
 	FILLIN( "WindowPosition", renderspuWindowPosition );

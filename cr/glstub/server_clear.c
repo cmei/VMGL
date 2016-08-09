@@ -90,7 +90,8 @@ glStubDispatchSwapBuffers( GLint window, GLint flags )
 
 	mural = (CRMuralInfo *) crHashtableSearch(cr_server.muralTable, window);
 	if (!mural) {
-		 return;
+            crError("Couldn't find mural for crWindowId = 0x%x during %s", window, __func__);
+            return;
 	}
 
 

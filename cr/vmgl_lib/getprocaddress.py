@@ -85,6 +85,7 @@ print "\t/* Chromium binding/glue functions */"
 for func_name in each_cr_glue():
     name = "cr" + func_name
     prnt_fill_entry(i, name, name)
+    i += 1
 
 
 print """

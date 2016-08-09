@@ -119,11 +119,6 @@ param GLXContext dst
 param unsigned long mask
 props wrapped
 
-name glGetString
-return const GLubyte *
-param GLenum
-name JoinSwapGroupNV
-
 name JoinSwapGroupNV
 return Bool
 param Display *dpy

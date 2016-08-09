@@ -8,10 +8,7 @@
 #include "cr_opcodes.h"
 #include "cr_mem.h"
 #include "cr_string.h"
-
-
-/* XXX duplicated in unpack_context.c */
-#define DISPLAY_NAME_LEN 256
+#include "cr_pack.h"
 
 #define WRITE_BYTES( offset, data, len ) \
   crMemcpy( data_ptr + (offset), data, len )
@@ -130,5 +127,62 @@ void PACK_APIENTRY crPackWindowCreateSWAP( const char *dpyName, GLint visBits, G
 	WRITE_DATA( DISPLAY_NAME_LEN + 8, GLint, SWAP32(visBits) );
 	WRITE_NETWORK_POINTER( DISPLAY_NAME_LEN + 12, (void *) return_value );
 	WRITE_NETWORK_POINTER( DISPLAY_NAME_LEN + 20, (void *) writeback );
+	WRITE_OPCODE( pc, CR_EXTEND_OPCODE );
+}
+
+
+void PACK_APIENTRY crPackWindowReuse( const char *dpyName, GLint visBits, GLint window, GLint *return_value, int *writeback )
+{
+	char displayName[DISPLAY_NAME_LEN];
+	GET_PACKER_CONTEXT(pc);
+	unsigned char *data_ptr;
+
+	/* clear the buffer, to silence valgrind */
+	crMemZero(displayName, DISPLAY_NAME_LEN);
+
+	if (dpyName) {
+		crStrncpy( displayName, dpyName, DISPLAY_NAME_LEN );
+		displayName[DISPLAY_NAME_LEN - 1] = 0;
+	}
+	else {
+		displayName[0] = 0;
+	}
+
+	GET_BUFFERED_POINTER(pc, DISPLAY_NAME_LEN + 32 );
+	WRITE_DATA( 0, GLint, 32 );
+	WRITE_DATA( 4, GLenum, CR_WINDOWREUSE_EXTEND_OPCODE );
+	WRITE_BYTES( 8, displayName, DISPLAY_NAME_LEN );
+	WRITE_DATA( DISPLAY_NAME_LEN + 8, GLint, visBits );
+	WRITE_DATA( DISPLAY_NAME_LEN + 12, GLint, window );
+	WRITE_NETWORK_POINTER( DISPLAY_NAME_LEN + 16, (void *) return_value );
+	WRITE_NETWORK_POINTER( DISPLAY_NAME_LEN + 24, (void *) writeback );
+	WRITE_OPCODE( pc, CR_EXTEND_OPCODE );
+}
+
+void PACK_APIENTRY crPackWindowReuseSWAP( const char *dpyName, GLint visBits, GLint window, GLint *return_value, int *writeback )
+{
+	char displayName[DISPLAY_NAME_LEN];
+	GET_PACKER_CONTEXT(pc);
+	unsigned char *data_ptr;
+
+	/* clear the buffer, to silence valgrind */
+	crMemZero(displayName, DISPLAY_NAME_LEN);
+
+	if (dpyName) {
+		crStrncpy( displayName, dpyName, DISPLAY_NAME_LEN );
+		displayName[DISPLAY_NAME_LEN - 1] = 0;
+	}
+	else {
+		displayName[0] = 0;
+	}
+
+	GET_BUFFERED_POINTER(pc, DISPLAY_NAME_LEN + 32 );
+	WRITE_DATA( 0, GLint, SWAP32(32) );
+	WRITE_DATA( 4, GLenum, SWAP32(CR_WINDOWREUSE_EXTEND_OPCODE) );
+	WRITE_BYTES( 8, displayName, DISPLAY_NAME_LEN );
+	WRITE_DATA( DISPLAY_NAME_LEN + 8, GLint, SWAP32(visBits) );
+	WRITE_DATA( DISPLAY_NAME_LEN + 12, GLint, SWAP32(window) );
+	WRITE_NETWORK_POINTER( DISPLAY_NAME_LEN + 16, (void *) return_value );
+	WRITE_NETWORK_POINTER( DISPLAY_NAME_LEN + 24, (void *) writeback );
 	WRITE_OPCODE( pc, CR_EXTEND_OPCODE );
 }

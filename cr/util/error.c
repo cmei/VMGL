@@ -84,7 +84,7 @@ static void outputChromiumMessage( FILE *output, char *str )
 	fflush( output );
 }
 
-void crError( char *format, ... )
+void __crError(const char * file, int line, const char * func, char *format, ... )
 {
 	va_list args;
 	static char txt[8092];
@@ -96,7 +96,7 @@ void crError( char *format, ... )
 
 	if (!my_hostname[0])
 	    __getHostInfo();
-	offset = sprintf( txt, "CR Error(%s:%d): ", my_hostname, my_pid );
+	offset = sprintf( txt, "CR Error(%s:%d) %s:%i: ", my_hostname, my_pid, file, line );
 
 	va_start( args, format );
 	vsprintf( txt + offset, format, args );
@@ -105,8 +105,15 @@ void crError( char *format, ... )
 	outputChromiumMessage( stderr, txt );
 
 	/* Give chance for things to close down */
+#ifdef CR_LOOP_ON_ERROR
+        crDebug("Looping forever and waiting for you to attach a debugger...");
+        while (1) {
+            sleep(5);
+        }
+#else
 	raise( SIGTERM );
 	exit(1);
+#endif
 }
 
 void crEnableWarnings(int onOff)
@@ -114,7 +121,7 @@ void crEnableWarnings(int onOff)
 	warnings_enabled = onOff;
 }
 
-void crWarning( char *format, ... )
+void __crWarning(const char * file, int line, const char * func, char *format, ... )
 {
 	if (warnings_enabled) {
 		va_list args;
@@ -126,7 +133,7 @@ void crWarning( char *format, ... )
 		__crCheckAustralia();
 		if (!my_hostname[0])
 			__getHostInfo();
-		offset = sprintf( txt, "CR Warning(%s:%d): ", my_hostname, my_pid );
+		offset = sprintf( txt, "CR Warning(%s:%d) %s:%i: ", my_hostname, my_pid, file, line );
 		va_start( args, format );
 		vsprintf( txt + offset, format, args );
 		outputChromiumMessage( stderr, txt );
@@ -134,7 +141,7 @@ void crWarning( char *format, ... )
 	}
 }
 
-void crInfo( char *format, ... )
+void __crInfo(const char * file, int line, const char * func, char *format, ... )
 {
 	va_list args;
 	static char txt[8092];
@@ -145,14 +152,14 @@ void crInfo( char *format, ... )
 	__crCheckAustralia();
 	if (!my_hostname[0])
 		__getHostInfo();
-	offset = sprintf( txt, "CR Info(%s:%d): ", my_hostname, my_pid );
+	offset = sprintf( txt, "CR Info(%s:%d) %s:%i: ", my_hostname, my_pid, file, line );
 	va_start( args, format );
 	vsprintf( txt + offset, format, args );
 	outputChromiumMessage( stderr, txt );
 	va_end( args );
 }
 
-void crDebug( char *format, ... )
+void __crDebug(const char * file, int line, const char * func, char *format, ... )
 {
 	va_list args;
 	static char txt[8092];
@@ -204,7 +211,7 @@ void crDebug( char *format, ... )
 	if (!my_hostname[0])
 		__getHostInfo();
 
-	offset = sprintf( txt, "CR Debug(%s:%d): ", my_hostname, my_pid );
+	offset = sprintf( txt, "CR Debug(%s:%d) %s:%i: ", my_hostname, my_pid, file, line );
 	va_start( args, format );
 	vsprintf( txt + offset, format, args );
 	outputChromiumMessage( output, txt );

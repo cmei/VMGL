@@ -279,6 +279,8 @@ void PACKSPU_APIENTRY packspu_MakeCurrent( GLint window, GLint nativeWindow, GLi
 
 		thread->currentContext = newCtx;
 		
+                if (WInfo)
+                    WInfo->drawable = nativeWindow;
 		if (WInfo && (pack_spu.openedXDisplay == XDPY_CONNECTED) && (WInfo->XWindow != nativeWindow)) {
 		    WInfo->XWindow = nativeWindow;
 		    if (XVMGLExtWatchWindow(pack_spu.XDisplay, window, WInfo->XWindow)) {

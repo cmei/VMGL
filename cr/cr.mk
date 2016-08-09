@@ -228,35 +228,35 @@ copies:
 
 $(OBJDIR)/%.obj: %.cpp Makefile
 	@$(ECHO) -n "Compiling "
-	@$(CR_CXX) /Fo$@ /c $(CXXFLAGS) $<
+	$(CR_CXX) /Fo$@ /c $(CXXFLAGS) $<
 
 $(OBJDIR)/%.obj: %.c Makefile
 	@$(ECHO) -n "Compiling "
-	@$(CR_CC) /Fo$@ /c $(CFLAGS) $<
+	$(CR_CC) /Fo$@ /c $(CFLAGS) $<
 
 $(OBJDIR)/%.o: %.cpp Makefile
 	@$(ECHO) "Compiling $<"
-	@$(CR_CXX) -o $@ -c $(CXXFLAGS) $<
+	$(CR_CXX) -o $@ -c $(CXXFLAGS) $(shell readlink -e $<)
 
 $(OBJDIR)/%.o: %.cxx Makefile
 	@$(ECHO) "Compiling $<"
-	@$(CR_CXX) -o $@ -c $(CXXFLAGS) $<
+	$(CR_CXX) -o $@ -c $(CXXFLAGS) $(shell readlink -e $<)
 
 $(OBJDIR)/%.o: %.cc Makefile
 	@$(ECHO) "Compiling $<"
-	@$(CR_CXX) -o $@ -c $(CXXFLAGS) $<
+	$(CR_CXX) -o $@ -c $(CXXFLAGS) $(shell readlink -e $<)
 
 $(OBJDIR)/%.o: %.C Makefile
 	@$(ECHO) "Compiling $<"
-	@$(CR_CXX) -o $@ -c $(CXXFLAGS) $<
+	$(CR_CXX) -o $@ -c $(CXXFLAGS) $(shell readlink -e $<)
 
 $(OBJDIR)/%.o: %.c Makefile
 	@$(ECHO) "Compiling $<"
-	@$(CR_CC) -o $@ -c $(CFLAGS) $<
+	$(CR_CC) -o $@ -c $(CFLAGS) $(shell readlink -e $<)
 
 $(OBJDIR)/%.o: %.s Makefile
 	@$(ECHO) "Assembling $<"
-	@$(AS) -o $@ $<
+	@$(AS) -o $@ $(shell readlink -e $<)
 
 ###############
 # Other targets

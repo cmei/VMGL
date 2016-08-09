@@ -99,9 +99,12 @@ GLint PACKSPU_APIENTRY packspu_WindowCreate( const char *dpyName, GLint visBits 
 		{
 			return_val = (GLint) SWAP32(return_val);
 		}
+
 		WInfo = (WindowInfo *) crAlloc(sizeof(WindowInfo));
 		WInfo->XWindow = 0;
 		WInfo->visual = visBits;
+                crDebug("Add pack_spu.XWindows: XWindow = 0x%x, visual = 0x%x", 
+                        WInfo->XWindow, WInfo->visual);
 		crHashtableAdd(pack_spu.XWindows,return_val,WInfo);
 		return return_val;
 	}

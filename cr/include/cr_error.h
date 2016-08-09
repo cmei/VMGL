@@ -17,15 +17,25 @@ extern "C" {
 #else
 #define NORETURN_PRINTF __attribute__ ((__noreturn__,format(printf,1,2)))
 #define PRINTF __attribute__ ((format(printf,1,2)))
+#define PRINTF_WITH_LINE __attribute__ ((format(printf,4,5)))
+#define NORETURN_PRINTF_WITH_LINE __attribute__ ((__noreturn__,format(printf,4,5)))
 #endif
 
 void crEnableWarnings(int onOff);
 
-void crDebug( char *format, ... ) PRINTF;
-void crWarning( char *format, ... ) PRINTF;
-void crInfo( char *format, ... ) PRINTF;
+void __crDebug(const char * file, int line, const char * func,
+        char *format, ... ) PRINTF_WITH_LINE;
+void __crWarning(const char * file, int line, const char * func,
+        char *format, ... ) PRINTF_WITH_LINE;
+void __crInfo(const char * file, int line, const char * func,
+        char *format, ... ) PRINTF_WITH_LINE;
+void __crError(const char * file, int line, const char * func,
+        char *format, ... ) NORETURN_PRINTF_WITH_LINE;
 
-void crError( char *format, ... ) NORETURN_PRINTF;
+#define crDebug(format, ...) __crDebug(__FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define crWarning(format, ...) __crWarning(__FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define crInfo(format, ...) __crInfo(__FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
+#define crError(format, ...) __crError(__FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
 
 #ifndef NDEBUG
 #define CRASSERT( PRED ) ((PRED)?(void)0:crError( "Assertion failed: %s, file %s, line %d", #PRED, __FILE__, __LINE__))

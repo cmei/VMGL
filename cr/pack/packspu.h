@@ -26,6 +26,7 @@ typedef struct window_info_t WindowInfo;
 struct window_info_t {
 	GLint XWindow;
         GLint visual;
+        GLint drawable;
 };
 
 extern char glVersion[100];

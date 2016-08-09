@@ -87,6 +87,17 @@ void APIENTRY crWindowDestroy( GLint window )
 	}
 }
 
+GLint APIENTRY crWindowReuse(  const char *dpyName, GLint visBits, GLint window )
+{
+    stubInit();
+    return stubReuseWindow( dpyName, visBits, window );
+}
+
+GLint APIENTRY crWindowId( GLint crWindowId )
+{
+    return stub.spu->dispatch_table.WindowId( crWindowId );
+}
+
 void APIENTRY crWindowSize( GLint window, GLint w, GLint h )
 {
 	const WindowInfo *winInfo = (const WindowInfo *)

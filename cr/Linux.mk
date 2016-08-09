@@ -15,7 +15,7 @@ CXX_DEBUG_FLAGS   += -g  # -Werror
 
 CFLAGS            += -DLINUX -Wall -Wmissing-prototypes -Wsign-compare
 C_RELEASE_FLAGS   += -O3 -DNDEBUG -fno-strict-aliasing -fexpensive-optimizations -funroll-loops -fprefetch-loop-arrays
-C_DEBUG_FLAGS     += -g  # -Werror
+C_DEBUG_FLAGS     += -g3 -O0  # -Werror
 
 PROFILEFLAGS = -pg -a
 
@@ -79,7 +79,7 @@ LN = ln -s
 MKDIR = mkdir -p
 RM = rm -f
 CP = cp
-MAKE = make -s
+MAKE = make -w
 NOWEB = noweb
 LATEX = latex
 BIBTEX = bibtex
@@ -89,7 +89,7 @@ LIBPREFIX = lib
 DLLSUFFIX = .so
 LIBSUFFIX = .a
 OBJSUFFIX = .o
-MV = mv
+MV = mv -f
 SHARED_LDFLAGS += -shared -Wl,-Bsymbolic
 PERL = perl
 PYTHON = python -t -t

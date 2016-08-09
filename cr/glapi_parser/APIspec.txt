@@ -8337,6 +8337,22 @@ category	Chromium
 props		nolist get
 chromium	extpack
 
+name		WindowReuse
+return		GLint
+param		dpyName		const char *
+param		visBits		GLint
+param		window		GLint
+category	Chromium
+props		nolist get
+chromium	extpack
+
+name		WindowId
+return		GLint
+param		crWindowId		GLint
+category	Chromium
+props		nolist get
+chromium	extpack
+
 name		WindowDestroy
 return		void
 param		window		GLint

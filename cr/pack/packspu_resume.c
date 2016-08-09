@@ -27,11 +27,13 @@
 #include "cr_environment.h"
 #include "cr_error.h"
 #include "cr_mem.h"
+#include "cr_list.h"
 #include "cr_string.h"
 #include "cr_packfunctions.h"
 #include "cr_url.h"
 #include "cr_process.h"
 #include "cr_XExtension.h"
+#include "cr_pack.h"
 
 #include <string.h>
 #include <errno.h>
@@ -111,21 +113,22 @@ static int connectToNewServer(char *glStub_str) {
  * Re-register it with the VMGLExtension on the X server. */
 static void packspuResumeWindow(unsigned long key, void *data1, void *data2)
 {
-	char fakeDpy[25];
+	char fakeDpy[DISPLAY_NAME_LEN];
 	WindowInfo *newWindow;
 
 	ThreadInfo *thread = (ThreadInfo *) data2;
 	WindowInfo *winInfo = (WindowInfo *) data1;
 	GLint window = 0;
 	GLint writeback = 1;
-	
-	crDebug("Resume: handling X window %d", winInfo->XWindow);
+
+	crDebug("Resume: handling X window 0x%x, winInfo->visual = 0x%x, drawable = 0x%x", 
+                winInfo->XWindow, winInfo->visual, winInfo->drawable);
 
 	/* Instruct glStub to create a window like the one we had. */
 	if (pack_spu.swap)
-		crPackWindowCreateSWAP( fakeDpy, winInfo->visual, &window, &writeback);
+		crPackWindowReuseSWAP( fakeDpy, winInfo->visual, winInfo->drawable, &window, &writeback);
 	else
-		crPackWindowCreate( fakeDpy, winInfo->visual, &window, &writeback);
+		crPackWindowReuse( fakeDpy, winInfo->visual, winInfo->drawable, &window, &writeback);
 	packspuFlush(thread);
 	while (writeback) {
 		crNetRecv();
@@ -133,15 +136,19 @@ static void packspuResumeWindow(unsigned long key, void *data1, void *data2)
 	if (pack_spu.swap)
 		window = (GLint) SWAP32(window);
 	if (window < 0) {
-		crWarning("Resume: can't recreate XWindow %d.", winInfo->XWindow);
+		crWarning("Resume: can't reuse XWindow %d (0x%x); probably no longer exists; ignoring.", winInfo->XWindow, winInfo->drawable);
 		return;
 	}
 	
 	/* Re-enter it into the new hash table with the new glStub side id */
         newWindow = (WindowInfo *) crAlloc(sizeof(WindowInfo));
-        newWindow->XWindow = winInfo->XWindow;
+        newWindow->XWindow = window;
         newWindow->visual = winInfo->visual;
+        newWindow->drawable = winInfo->drawable;
         crHashtableAdd(pack_spu.XWindows, window, newWindow);
+
+	crDebug("Resume:   newWindow->XWindow = 0x%x", 
+                newWindow->XWindow);
                                                                 	
 	/* Re-register it with the VMGLExtension on the X server.
 	 * The extension will take care of window position, size and visibility. */
@@ -293,8 +300,7 @@ static void packspuResumeContext(void *element, void *arg)
 	if (context->boundWindow) {
 	    winInfo = crHashtableSearch(oldHash, context->boundWindow);
 	    serverWindow = winInfo->XWindow;
-	    winInfo = crHashtableSearch(pack_spu.XWindows, serverWindow);
-	    nativeWindow = winInfo->XWindow;
+	    nativeWindow = winInfo->drawable;
 	} else {
 	    serverWindow = 0;
 	    nativeWindow = 0;
@@ -347,29 +353,28 @@ static int packspuResume(char *glStub_str)
 	 * We keep the old one in a temp var, and walk it to build the new one.
 	 * The old hash table remains with the new glStub ids keyed by the old ones.
 	 * We'll need that later. */
-	crDebug("Resume: Windows first");
+	crDebug("Resume: Windows first (size = %i)", crHashtableNumElements(pack_spu.XWindows));
 	oldHash = pack_spu.XWindows;
 	pack_spu.XWindows = crAllocHashtable();
 	crHashtableWalk(oldHash, packspuResumeWindow, thread);
 
 	/* Now recreate contexts. Need to preserve ordering for shared context
 	 * dependencies. Hence use list. */
-	crDebug("Resume: Contexts second");
+	crDebug("Resume: Contexts second (size = %i)", crListSize(pack_spu.contextList));
 	crListApply(pack_spu.contextList, packspuResumeContext, thread);
 	
 	/* Restore current context. It was changed constantly as we walked the list. */
 	if (thread->currentContext) {
 		int resumeCurrentContext = (int) thread->currentContext->serverCtx;
-		int resumeCurrentWindow_oldid = (int) thread->currentContext->boundWindow;
-		WindowInfo *winInfo = crHashtableSearch(oldHash, resumeCurrentWindow_oldid);
+                int boundWindow = (int) thread->currentContext->boundWindow;
+		WindowInfo *winInfo = crHashtableSearch(oldHash, boundWindow);
 		GLint resumeCurrentWindow = winInfo->XWindow;
-		winInfo = crHashtableSearch(oldHash, resumeCurrentWindow); 
-		GLint nativeWindow = winInfo->XWindow;
+		GLint nativeWindow = winInfo->drawable;
 		
-		crDebug("Resume: set back current context");
+		crDebug("Resume: set back current context; boundWindow = 0x%x, nativeWindow = 0x%x, resumeCurrentWindow = 0x%x, resumeCurrentContext = 0x%x", 
+                        boundWindow, nativeWindow, resumeCurrentWindow, resumeCurrentContext);
 		crStateMakeCurrent(thread->currentContext->clientState );
                 crDLMSetCurrentState(thread->currentContext->DLMState);
-                thread->currentContext->boundWindow = resumeCurrentWindow;
 
 		if (pack_spu.swap)
 			crPackMakeCurrentSWAP(resumeCurrentWindow, nativeWindow, resumeCurrentContext);
@@ -380,6 +385,7 @@ static int packspuResume(char *glStub_str)
 	/* Done */
 	crDebug("Resume: ending");
 	crFreeHashtable(oldHash, NULL);
+        // TODO: free winInfos in oldHash?
 	packspuFlush(thread);
 
 	return 1;

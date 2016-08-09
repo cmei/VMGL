@@ -523,6 +523,17 @@ unsigned int crHashtableNumElements( const CRHashTable *h)
 		return 0;
 }
 
+
+static void printPair(unsigned long key, void *data1, void *data2)
+{
+    crDebug("  [%p / %lu] = %p / %lu", (void *) key, key, data1, (unsigned long) data1);
+}
+void crHashPrint(CRHashTable *h, const char * name)
+{
+    crDebug("Hashtable %s:", name);
+    crHashtableWalk(h, printPair, NULL);
+}
+
 /*
  * Determine if the given key is used.  Return GL_TRUE if so.
  */

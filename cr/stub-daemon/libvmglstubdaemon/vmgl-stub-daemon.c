@@ -172,6 +172,9 @@ static void *acceptLoop(void *blah) {
 	    fail("couldn't fork");
 	}
 	if (!pid) { /* Fork succesful, child */
+            /* Redirect child output to ~/.stub-daemon.log */
+            dup2(fileno(logfd), STDOUT_FILENO);
+            dup2(fileno(logfd), STDERR_FILENO);
 	    execvp("glstub", glStubArgs);
 	    /* We're still executing here, means fork failed */
 	    fail("exec for child failed");

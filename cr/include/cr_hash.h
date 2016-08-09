@@ -29,6 +29,7 @@ void crHashtableDeleteBlock( CRHashTable *h, unsigned long key, GLsizei range, C
 void *crHashtableSearch( const CRHashTable *h, unsigned long key );
 void crHashtableReplace( CRHashTable *h, unsigned long key, void *data, CRHashtableCallback deleteFunc);
 unsigned int crHashtableNumElements( const CRHashTable *h) ;
+void crHashPrint(CRHashTable *h, const char * name);
 GLboolean crHashtableIsKeyUsed( const CRHashTable *h, GLuint id );
 void crHashtableWalk( CRHashTable *hash, CRHashtableWalkCallback walkFunc , void *data);
 

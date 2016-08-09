@@ -23,6 +23,9 @@
 extern "C" {
 #endif
 
+/* XXX duplicated in unpack_context.c */
+#define DISPLAY_NAME_LEN 256
+
 typedef struct CRPackContext_t CRPackContext;
 
 /**

@@ -30,7 +30,76 @@ generateID(void)
 	}
 }
 
+void initGLStubWindow(GLint spuWindow, GLint* windowID, GLint dims[2])
+{
+    CRMuralInfo *mural;
 
+    /*
+     * Create a new mural for the new window.
+     */
+    mural = (CRMuralInfo *) crCalloc(sizeof(CRMuralInfo));
+    CRASSERT(mural);
+    if (mural) {
+        CRMuralInfo *defaultMural = (CRMuralInfo *) crHashtableSearch(cr_server.muralTable, 0);
+        CRASSERT(defaultMural);
+        mural->width = defaultMural->width;
+        mural->height = defaultMural->height;
+        mural->optimizeBucket = 0; /* might get enabled later */
+        mural->numExtents = defaultMural->numExtents;
+        mural->curExtent = 0;
+        crMemcpy(mural->extents, defaultMural->extents,
+                defaultMural->numExtents * sizeof(CRExtent));
+        mural->underlyingDisplay[0] = 0;
+        mural->underlyingDisplay[1] = 0;
+        mural->underlyingDisplay[2] = dims[0];
+        mural->underlyingDisplay[3] = dims[1];
+
+        mural->spuWindow = spuWindow;
+        glStubInitializeTiling(mural);
+
+        // NOTE: previously, we would call generateID() for CR_TCPIP connection and do this only for CR_FILE.
+        *windowID = spuWindow;
+
+        crHashtableAdd(cr_server.muralTable, *windowID, mural);
+    }
+
+}
+
+GLint SERVER_DISPATCH_APIENTRY
+glStubDispatchWindowReuse( const char *dpyName, GLint visBits, GLint window )
+{
+	CRMuralInfo *mural;
+	GLint windowID = -1;
+	GLint spuWindow;
+	GLint dims[2];
+
+        /* This code won't play nice with state resumption... */
+        CRASSERT(!cr_server.sharedWindows);
+
+	/*
+	 * Have first SPU make a new window.
+	 */
+	spuWindow = cr_server.head_spu->dispatch_table.WindowReuse( dpyName, visBits, window );
+	if (spuWindow < 0) {
+                crDebug("GLStub: client %p failed to reuse window (xwindow=0x%x, return=%d)",
+                                                cr_server.curClient, window, spuWindow);
+		glStubReturnValue( &spuWindow, sizeof(spuWindow) );
+		return spuWindow;
+	}
+
+	/* get initial window size */
+	cr_server.head_spu->dispatch_table.GetChromiumParametervCR(GL_WINDOW_SIZE_CR, spuWindow, GL_INT, 2, dims);
+
+        initGLStubWindow(spuWindow, &windowID, dims);
+        CRASSERT(spuWindow == windowID);
+
+	crDebug("GLStub: client %p reused window %d (xwindow=0x%x, SPU window %d)",
+					cr_server.curClient, windowID, window, spuWindow);
+
+	glStubReturnValue( &windowID, sizeof(windowID) );
+	return windowID;
+
+}
 
 GLint SERVER_DISPATCH_APIENTRY
 glStubDispatchWindowCreate( const char *dpyName, GLint visBits )
@@ -40,33 +109,8 @@ glStubDispatchWindowCreate( const char *dpyName, GLint visBits )
 	GLint spuWindow;
 	GLint dims[2];
 
-	if (cr_server.sharedWindows) {
-		int pos, j;
-
-		/* find empty position in my (curclient) windowList */
-		for (pos = 0; pos < CR_MAX_WINDOWS; pos++) {
-			if (cr_server.curClient->windowList[pos] == 0) {
-				break;
-			}
-		}
-		if (pos == CR_MAX_WINDOWS) {
-			crWarning("Too many windows in gl stub!");
-			return -1;
-		}
-
-		/* Look if any other client has a window for this slot */
-		for (j = 0; j < cr_server.numClients; j++) {
-			if (cr_server.clients[j]->windowList[pos] != 0) {
-				/* use that client's window */
-				windowID = cr_server.clients[j]->windowList[pos];
-				cr_server.curClient->windowList[pos] = windowID;
-				glStubReturnValue( &windowID, sizeof(windowID) ); /* real return value */
-				crDebug("GLStub: client %p sharing window %d",
-								cr_server.curClient, windowID);
-				return windowID;
-			}
-		}
-	}
+        /* This code won't play nice with state resumption... */
+        CRASSERT(!cr_server.sharedWindows);
 
 	/*
 	 * Have first SPU make a new window.
@@ -80,48 +124,11 @@ glStubDispatchWindowCreate( const char *dpyName, GLint visBits )
 	/* get initial window size */
 	cr_server.head_spu->dispatch_table.GetChromiumParametervCR(GL_WINDOW_SIZE_CR, spuWindow, GL_INT, 2, dims);
 
-	/*
-	 * Create a new mural for the new window.
-	 */
-	mural = (CRMuralInfo *) crCalloc(sizeof(CRMuralInfo));
-	if (mural) {
-		CRMuralInfo *defaultMural = (CRMuralInfo *) crHashtableSearch(cr_server.muralTable, 0);
-		CRASSERT(defaultMural);
-		mural->width = defaultMural->width;
-		mural->height = defaultMural->height;
-		mural->optimizeBucket = 0; /* might get enabled later */
-		mural->numExtents = defaultMural->numExtents;
-		mural->curExtent = 0;
-		crMemcpy(mural->extents, defaultMural->extents,
-				 defaultMural->numExtents * sizeof(CRExtent));
-		mural->underlyingDisplay[0] = 0;
-		mural->underlyingDisplay[1] = 0;
-		mural->underlyingDisplay[2] = dims[0];
-		mural->underlyingDisplay[3] = dims[1];
-
-		mural->spuWindow = spuWindow;
-		glStubInitializeTiling(mural);
-
-		/* generate ID for this new window/mural (special-case for file conns) */
-		if (cr_server.curClient->conn->type == CR_FILE)
-			windowID = spuWindow;
-		else
-			windowID = generateID();
-		crHashtableAdd(cr_server.muralTable, windowID, mural);
-	}
+        initGLStubWindow(spuWindow, &windowID, dims);
+        CRASSERT(spuWindow == windowID);
 
 	crDebug("GLStub: client %p created new window %d (SPU window %d)",
 					cr_server.curClient, windowID, spuWindow);
-
-	if (windowID != -1 && cr_server.sharedWindows) {
-		int pos;
-		for (pos = 0; pos < CR_MAX_WINDOWS; pos++) {
-			if (cr_server.curClient->windowList[pos] == 0) {
-				cr_server.curClient->windowList[pos] = windowID;
-				break;
-			}
-		}
-	}
 
 	glStubReturnValue( &windowID, sizeof(windowID) );
 	return windowID;
@@ -133,18 +140,24 @@ glStubDispatchWindowCreate( const char *dpyName, GLint visBits )
 void SERVER_DISPATCH_APIENTRY
 glStubDispatchWindowDestroy( GLint window )
 {
-  CRMuralInfo *mural;
+    CRMuralInfo *mural;
+    GLint windowID = -1;
+    GLint spuWindow;
+    GLint dims[2];
 
-	mural = (CRMuralInfo *) crHashtableSearch(cr_server.muralTable, window);
-	if (!mural) {
+    mural = (CRMuralInfo *) crHashtableSearch(cr_server.muralTable, window);
+    if (!mural) {
 #if EXTRA_WARN
-		 crWarning("GLStub: invalid window %d passed to WindowDestroy()", window);
+        crWarning("GLStub: invalid window %d passed to WindowDestroy()", window);
 #endif
-		 return;
-	}
+        return;
+    }
 
-	crDebug("GLStub: Destroying window %d (spu window %d)", window, mural->spuWindow);
-	cr_server.head_spu->dispatch_table.WindowDestroy( mural->spuWindow );
+    crHashtableDelete(cr_server.muralTable, window, NULL);
+    crFree(mural);
+
+    crDebug("GLStub: Destroying window %d (spu window %d)", window, mural->spuWindow);
+    cr_server.head_spu->dispatch_table.WindowDestroy( mural->spuWindow );
 }
 
 

@@ -148,6 +148,7 @@ extern ContextInfo *stubNewContext( const char *dpyName, GLint visBits, ContextT
 extern void stubDestroyContext( unsigned long contextId );
 extern GLboolean stubMakeCurrent( WindowInfo *window, ContextInfo *context );
 extern GLint stubNewWindow( const char *dpyName, GLint visBits );
+extern GLint stubReuseWindow( const char *dpyName, GLint visBits, GLint window );
 extern void stubSwapBuffers( const WindowInfo *window, GLint flags );
 extern void stubGetWindowGeometry( const WindowInfo *win, int *x, int *y, unsigned int *w, unsigned int *h );
 extern GLboolean stubIsWindowVisible( const WindowInfo *win );

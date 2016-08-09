@@ -87,6 +87,7 @@ SecondaryColor3dEXT
 MakeCurrent
 CreateContext
 DestroyContext
+WindowReuse
 WindowCreate
 WindowDestroy
 WindowSize

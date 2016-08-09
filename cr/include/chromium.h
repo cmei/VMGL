@@ -59,6 +59,11 @@ extern "C" {
 #define APIENTRY
 #endif
 
+/**********************************************************************/
+/*****     Useful configuration stuff     *****/
+/**********************************************************************/
+#define CR_LOOP_ON_ERROR
+
 
 /**********************************************************************/
 /*****     Define things that might have been missing in gl.h     *****/
@@ -514,6 +519,8 @@ extern GLint APIENTRY crGetCurrentContext(void);
 extern GLint APIENTRY crGetCurrentWindow(void);
 extern void APIENTRY crSwapBuffers(GLint window, GLint flags);
 extern GLint APIENTRY crWindowCreate(const char *dpyName, GLint visBits);
+extern GLint APIENTRY crWindowId( GLint crWindowId );
+extern GLint APIENTRY crWindowReuse(const char *dpyName, GLint visBits, GLint window);
 extern void APIENTRY crWindowDestroy(GLint window);
 extern void APIENTRY crWindowSize(GLint window, GLint w, GLint h);
 extern void APIENTRY crWindowPosition(GLint window, GLint x, GLint y);

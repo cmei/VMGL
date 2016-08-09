@@ -523,7 +523,7 @@ Bool glXMakeCurrent( Display *dpy, GLXDrawable drawable, GLXContext ctx )
 	WindowInfo *window;
 	Bool retVal;
 
-	/*crDebug("glXMakeCurrent(%p, 0x%x, 0x%x)", (void *) dpy, (int) drawable, (int) ctx);*/
+	crDebug("glXMakeCurrent(%p, 0x%x, 0x%x)", (void *) dpy, (int) drawable, (int) ctx);
 
 	if (ctx && drawable) {
 		context = (ContextInfo *) crHashtableSearch(stub.contextTable, (unsigned long) ctx);
