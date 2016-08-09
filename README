@@ -175,9 +175,9 @@ A. INSTALLATION:
 1) "guest"
    1) Install x11vnc
       $ sudo apt-get install x11vnc
-   2) Checkout VMGL tag with small bug fix for glstub configuration
+   2) Checkout james' VMGL branch:
       $ git clone https://github.com/cmei/VMGL.git 
-      $ git checkout james-setup
+      $ git checkout james
    3) Build VMGL, install guest stuff.
       $ cd VMGL
       $ sudo make install-guest
@@ -208,7 +208,7 @@ B. RUNNING IT
    3) Run glstub daemon
       $ CR_SYSTEM_GL_PATH=/usr/lib/nvidia-361 \
           DISPLAY=:0 \
-          glstub
+          stub-daemon
 
 2) "guest"
    1) SSH from the "host" _into_ the "guest" so we can forward X commands to display host:0.
@@ -217,11 +217,29 @@ B. RUNNING IT
       # Connected to host; now ssh into guest with DISPLAY set so X forwarding gets setup
       $ DISPLAY=:0 ssh -X guest 
 
-   2) Run glxgears
-      # Note: we need to point glxgears to a libGL.so otherwise it refuses to start;
-      # just hand it the mesa software implementation, since we have no GPU attached.
-      # IS_GLSTUB_DAEMON=yes is part of the bug fix and must be provided, 
-      # otherwise you'll fail to connect.
-      $ IS_GLSTUB_DAEMON=yes \
+   2) Run your app:
+      a) glxgears
+      # Note: 
+      # - We need to point glxgears to a libGL.so otherwise it refuses to start;
+      #   just hand it the mesa software implementation (works if we have no GPU attached).
+      # - If you want, you can build glxgears from source by cloning this repo:
+      #   https://anongit.freedesktop.org/git/mesa/demos.git
+      #   They use cmake, so build instructions are the same as quake3 below.
+      $ GLSTUB=<host_ip>:7000 \
           CR_SYSTEM_GL_PATH=/usr/lib/x86_64-linux-gnu/mesa \
           glxgears
+
+      b) quake3
+         1) Build quake3 from source with debug symbols (not needed, but useful):
+         $ git clone https://github.com/ioquake/ioq3.git
+         $ cd ioq3
+         $ mkdir build
+         $ cd build
+         $ cmake -DCMAKE_BUILD_TYPE=Debug ..
+         $ make -j4
+         $ cd ..                                   # cd back to root of ioq3 repo.
+
+         2) Run quake3
+         $ GLSTUB=<host_ip>:7000 \
+             CR_SYSTEM_GL_PATH=/usr/lib/x86_64-linux-gnu/mesa \
+             build/debug-linux-x86_64/ioquake3.x86_64
