@@ -191,13 +191,16 @@ A. INSTALLATION:
       $ git clone git@bitbucket.org:eyaldelara/gpumigration.git gpumigration.master
       $ cd gpumigration.master
       $ git checkout master
-      $ vim README.md
+      $ vim livemigration/README.md
 
 B. RUNNING IT
 1) "host"
    1) Startup Xorg
       $ x11vnc -display :0 -forever -shared
-      # Note: this cmdline is based on "sudo service lightdm start"; some things may not be required.
+      # Note: 
+      # - This cmdline is based on "sudo service lightdm start"; some things may not be required.
+      # - This xorg.conf is based on `nvidia-xconfig` with some manual additions:
+      #   - a Display subsection so that apps like quake3 will start
       $ sudo build/bin/Xorg \
             -core :0 -seat seat0 -auth /var/run/lightdm/root/:0 -nolisten tcp vt7 -novtswitch \
             -config VMGL/config/xorg/xorg.conf
@@ -243,3 +246,6 @@ B. RUNNING IT
          $ GLSTUB=<host_ip>:7000 \
              CR_SYSTEM_GL_PATH=/usr/lib/x86_64-linux-gnu/mesa \
              build/debug-linux-x86_64/ioquake3.x86_64
+
+   3) Trigger GL app to suspend then immediately resume:
+   $ VMGL/script/guest/suspend_resume_gl_apps.sh
