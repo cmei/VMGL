@@ -13,9 +13,11 @@
 /**
  * Generate a new window ID.
  */
+__attribute__((unused))
 static GLint
 generateID(void)
 {
+        (void) generateID;
 	if (cr_server.uniqueWindows) {
 		static GLboolean firstCall = GL_TRUE;
 		if (firstCall) {
@@ -30,7 +32,8 @@ generateID(void)
 	}
 }
 
-void initGLStubWindow(GLint spuWindow, GLint* windowID, GLint dims[2])
+static void 
+initGLStubWindow(GLint spuWindow, GLint* windowID, GLint dims[2])
 {
     CRMuralInfo *mural;
 
@@ -68,7 +71,6 @@ void initGLStubWindow(GLint spuWindow, GLint* windowID, GLint dims[2])
 GLint SERVER_DISPATCH_APIENTRY
 glStubDispatchWindowReuse( const char *dpyName, GLint visBits, GLint window )
 {
-	CRMuralInfo *mural;
 	GLint windowID = -1;
 	GLint spuWindow;
 	GLint dims[2];
@@ -104,7 +106,6 @@ glStubDispatchWindowReuse( const char *dpyName, GLint visBits, GLint window )
 GLint SERVER_DISPATCH_APIENTRY
 glStubDispatchWindowCreate( const char *dpyName, GLint visBits )
 {
-	CRMuralInfo *mural;
 	GLint windowID = -1;
 	GLint spuWindow;
 	GLint dims[2];
@@ -141,9 +142,6 @@ void SERVER_DISPATCH_APIENTRY
 glStubDispatchWindowDestroy( GLint window )
 {
     CRMuralInfo *mural;
-    GLint windowID = -1;
-    GLint spuWindow;
-    GLint dims[2];
 
     mural = (CRMuralInfo *) crHashtableSearch(cr_server.muralTable, window);
     if (!mural) {

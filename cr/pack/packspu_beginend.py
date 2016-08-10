@@ -99,6 +99,8 @@ static void DoVertex( void )
 	CRPackBuffer *gbuf = &thread->normBuffer;
 	int num_data;
 	int num_opcode;
+        (void) num_data;
+        (void) num_opcode;
 
 	/*crDebug( "really doing Vertex" );*/
 	crPackReleaseBuffer( thread->packer );

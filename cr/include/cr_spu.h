@@ -159,6 +159,26 @@ typedef int (*glXQueryContextFunc_t)(Display *dpy, GLXContext ctx, int attribute
 typedef void (*glXQueryDrawableFunc_t)(Display *dpy, GLXDrawable draw, int attribute, unsigned int *value);
 #endif /* GLX_VERSION_1_3 */
 
+/* X11 */
+typedef Window (*XCreateWindowFunc_t)(
+    Display*		/* display */,
+    Window		/* parent */,
+    int			/* x */,
+    int			/* y */,
+    unsigned int	/* width */,
+    unsigned int	/* height */,
+    unsigned int	/* border_width */,
+    int			/* depth */,
+    unsigned int	/* class */,
+    Visual*		/* visual */,
+    unsigned long	/* valuemask */,
+    XSetWindowAttributes*	/* attributes */
+); 
+typedef int (*XDestroyWindowFunc_t)(
+    Display*		/* display */,
+    Window		/* w */
+);
+
 
 /**
  * Package up the GLX function pointers into a struct.  We use
@@ -205,6 +225,9 @@ typedef struct {
 	glXQueryDrawableFunc_t glXQueryDrawable;
 #endif
 	glGetStringFunc_t glGetString;
+        /* X11 */
+        XCreateWindowFunc_t XCreateWindow;
+        XDestroyWindowFunc_t XDestroyWindow;
 } crOpenGLInterface;
 
 

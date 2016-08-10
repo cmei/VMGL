@@ -58,6 +58,7 @@ def gendiffcode(fname, state_name, docopy, doinvalid):
 	CRbitvalue nbitID[CR_MAX_BITARRAY];
 	for (j=0;j<CR_MAX_BITARRAY;j++)
 		nbitID[j] = ~bitID[j];
+        (void) i;
 	i = 0; /* silence compiler */"""
 
 	import re

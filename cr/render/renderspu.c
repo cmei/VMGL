@@ -327,7 +327,7 @@ renderspuWindowId( GLint crWindowId )
 }
 
 int 
-renderspu_WindowExists(  char *dpyName, GLint window )
+renderspu_WindowExists(  const char *dpyName, GLint window )
 {
     int err, ret;
     if (!dpyName || crStrlen(render_spu.display_string) > 0)
@@ -907,7 +907,7 @@ renderspuGetChromiumParametervCR(GLenum target, GLuint index, GLenum type,
 		    XWindowData *winData = ((XWindowData *) values);
 		    WindowInfo *window = (WindowInfo *) crHashtableSearch(render_spu.windowTable, index);
 		    CRASSERT(values);
-		    CRASSERT(count = 1);
+		    CRASSERT(count == 1);
 		    /* This is complicated because we need the X display as well */
 		    if (window) {
 			winData->XWindow = window->window;

@@ -11,6 +11,10 @@
 extern "C" {
 #endif
 
+#include <unistd.h>
+
+#include "cr_config.h"
+
 #ifndef __GNUC__
 #define NORETURN_PRINTF
 #define PRINTF
@@ -38,12 +42,42 @@ void __crError(const char * file, int line, const char * func,
 #define crError(format, ...) __crError(__FILE__, __LINE__, __func__, format, ##__VA_ARGS__)
 
 #ifndef NDEBUG
+
+#ifdef CR_LOOP_ON_ERROR
+#define CRASSERT( PRED ) do { \
+    if (PRED) \
+        break; \
+    crDebug( "Assertion failed: %s, file %s, line %d", #PRED, __FILE__, __LINE__); \
+    crDebug("Looping forever and waiting for you to attach a debugger..."); \
+    while (1) { \
+        sleep(5); \
+    } \
+} while (1);
+#else
 #define CRASSERT( PRED ) ((PRED)?(void)0:crError( "Assertion failed: %s, file %s, line %d", #PRED, __FILE__, __LINE__))
+#endif // CR_LOOP_ON_ERROR
+
 #define THREADASSERT( PRED ) ((PRED)?(void)0:crError( "Are you trying to run a threaded app ?\nBuild with 'make threadsafe'\nAssertion failed: %s, file %s, line %d", #PRED, __FILE__, __LINE__))
 #else
 #define CRASSERT( PRED ) ((void)0)
 #define THREADASSERT( PRED ) ((void)0)
 #endif
+
+/**************************** LOGGING *****************************/
+#define DB_GL_RELOAD                   (1 << 1) 
+#define DB_X11                         (2 << 1) 
+
+// #define DB_FLAGS 0
+#define DB_FLAGS (DB_GL_RELOAD | DB_X11)
+
+#define _DB(dbfunc, dbflag, fmt, ...) do { \
+    if (dbflag & DB_FLAGS) { \
+        dbfunc(__FILE__, __LINE__, __func__, "[%s] " fmt, #dbflag, ##__VA_ARGS__); \
+    } \
+} while (0)
+#define CR_DEBUG(dbflag, fmt, ...) _DB(__crDebug, dbflag, fmt, ##__VA_ARGS__)
+#define CR_INFO(dbflag, fmt, ...) _DB(__crInfo, dbflag, fmt, ##__VA_ARGS__)
+#define CR_ERROR(dbflag, fmt, ...) _DB(__crError, dbflag, fmt, ##__VA_ARGS__)
 
 #ifdef __cplusplus
 }

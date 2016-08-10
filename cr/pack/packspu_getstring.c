@@ -74,6 +74,7 @@ char glVersion[100];
 const GLubyte * PACKSPU_APIENTRY packspu_GetString( GLenum name )
 {
 	GET_CONTEXT(ctx);
+        (void) ctx;
 	if (name == GL_EXTENSIONS)
 	{
 		return GetExtensions();
@@ -83,7 +84,7 @@ const GLubyte * PACKSPU_APIENTRY packspu_GetString( GLenum name )
         if (glVersion[0] == '\0') {
             float version = GetVersionString();
             int n = snprintf(glVersion, sizeof(glVersion), "%g %s %s", version, CR_RENDERER, CR_VERSION_STRING);
-            CRASSERT(n < sizeof(glVersion)); 
+            CRASSERT(n > 0 && (unsigned long) n < sizeof(glVersion)); 
         }
 		return (const GLubyte *) glVersion;
 	}

@@ -590,6 +590,7 @@ crStateTextureObjectDiff(CRContext *fromCtx,
 {
 	CRTextureState *from = &(fromCtx->texture);
 	glAble able[2];
+        (void) able;
 	int u = 0; /* always use texture unit 0 for diff'ing */
 
 	able[0] = diff_api.Disable;

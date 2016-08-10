@@ -20,7 +20,7 @@ SUBDIRS = cr tightvnc tightvnc/Xvnc
 DOM0_BIN = vncviewer glstub stub-daemon
 DOMU_BIN = Xvnc vncserver
 DOM0_LIB = libcrutil.so libspuload.so liberrorspu.so librenderspu.so
-DOMU_LIB = libcrutil.so libspuload.so liberrorspu.so libvmgl.so libarrayspu.so libfeedbackspu.so libpackspu.so libpassthroughspu.so
+DOMU_LIB = libcrutil.so libspuload.so liberrorspu.so libvmgl.so libarrayspu.so libfeedbackspu.so libpackspu.so libpassthroughspu.so libglreload.so librenderspu.so
 
 ifdef VMGLPATH
 INSTALLPATH = $(VMGLPATH)
@@ -53,6 +53,7 @@ clean:
 	@for dir in $(SUBDIRS) ; do \
 		(cd $$dir ; $(MAKE) clean) ; \
 	done
+	@rm -rf $(TOP)/dist
 
 install-host: all
 	$(INSTALL) -d $(INSTALLPATH)/bin/

@@ -17,7 +17,7 @@ include $(TOP)/$(ARCH).mk
 SHARED = 1
 LIBRARY = vmgl
 FILES = getprocaddress load stub context NULLfuncs
-LIBRARIES = crutil spuload
+LIBRARIES = crutil spuload renderspu
 
 ifeq ($(ARCH), Linux)
 LDFLAGS += -lX11

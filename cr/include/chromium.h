@@ -59,11 +59,7 @@ extern "C" {
 #define APIENTRY
 #endif
 
-/**********************************************************************/
-/*****     Useful configuration stuff     *****/
-/**********************************************************************/
-#define CR_LOOP_ON_ERROR
-
+#include "cr_config.h"
 
 /**********************************************************************/
 /*****     Define things that might have been missing in gl.h     *****/

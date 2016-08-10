@@ -59,11 +59,42 @@ stubCheckMultithread( void )
 }
 #endif
 
+static const char * NATIVE_DISPLAY_STR; 
+static Display * NATIVE_DISPLAY; 
+Display * getNativeDisplay(void)
+{
+    if (NATIVE_DISPLAY)
+        return NATIVE_DISPLAY;
+    NATIVE_DISPLAY_STR = crGetenv("CR_NATIVE_DISPLAY");
+    if (!NATIVE_DISPLAY_STR) {
+        crError("In order to render to a native display, set CR_NATIVE_DISPLAY to your local XServer display");
+    }
+    NATIVE_DISPLAY = XOpenDisplay(NATIVE_DISPLAY_STR);
+    if (!NATIVE_DISPLAY) {
+        crError("Failed to open native display");
+    }
+    return NULL;
+}
+
+static int HAS_NATIVE_DISPLAY = -1;
+int hasNativeDisplay(void)
+{
+    if (HAS_NATIVE_DISPLAY != -1) {
+        return HAS_NATIVE_DISPLAY;
+    }
+    if (crGetenv("CR_NATIVE_DISPLAY") == NULL) {
+        HAS_NATIVE_DISPLAY = 0;
+        return HAS_NATIVE_DISPLAY;
+    }
+    HAS_NATIVE_DISPLAY = getNativeDisplay() != NULL;
+    return HAS_NATIVE_DISPLAY;
+}
+
 
 /**
  * Install the given dispatch table as the table used for all gl* calls.
  */
-    static void
+void
 stubSetDispatch( SPUDispatchTable *table )
 {
     CRASSERT(table);
@@ -89,7 +120,7 @@ stubSetDispatch( SPUDispatchTable *table )
     }
 }
 
-void
+static void
 initChromiumWindow(const char * dpyName, WindowInfo *winInfo, GLint spuWin)
 {
     GLint size[2];
@@ -186,32 +217,17 @@ stubIsWindowVisible( const WindowInfo *win )
 #endif
 }
 
-
 /**
  * Given a Windows HDC or GLX Drawable, return the corresponding
  * WindowInfo structure.  Create a new one if needed.
  */
 WindowInfo *
 #if defined(GLX)
-stubGetWindowInfo( Display *dpy, GLXDrawable drawable )
+stubGetWindowInfo( GLXDrawable drawable )
 #endif
 {
     WindowInfo *winInfo = (WindowInfo *) crHashtableSearch(stub.windowTable, (unsigned int) drawable);
-    if (!winInfo) {
-	winInfo = (WindowInfo *) crCalloc(sizeof(WindowInfo));
-	if (!winInfo)
-	    return NULL;
-#ifdef GLX
-	crStrncpy(winInfo->dpyName, DisplayString(dpy), MAX_DPY_NAME);
-	winInfo->dpyName[MAX_DPY_NAME-1] = 0;
-	winInfo->dpy = dpy;
-#endif
-	winInfo->drawable = drawable;
-	winInfo->type = UNDECIDED;
-	winInfo->spuWindow = -1;
-	winInfo->mapped = -1; /* don't know */
-	crHashtableAdd(stub.windowTable, (unsigned int) drawable, winInfo);
-    }
+    CRASSERT(winInfo);
     return winInfo;
 }
 
@@ -227,6 +243,7 @@ stubNewContext( const char *dpyName, GLint visBits, ContextType type,
 {
     GLint spuContext = -1, spuShareCtx = 0;
     ContextInfo *context;
+    GLXContext nativeContext = 0;
 
     if (shareCtx > 0) {
 	/* translate shareCtx to a SPU context ID */
@@ -236,11 +253,14 @@ stubNewContext( const char *dpyName, GLint visBits, ContextType type,
 	    spuShareCtx = context->spuContext;
     }
 
-    if (type == CHROMIUM) {
-	spuContext
-		= stub.spu->dispatch_table.CreateContext(dpyName, visBits, spuShareCtx);
+    if (stub.vm_mode == VM_LIVE_MIGRATION) {
+	spuContext = stub.spu->dispatch_table.CreateContext(dpyName, visBits, spuShareCtx);
 	if (spuContext < 0)
-		return NULL;
+            return NULL;
+    } else {
+        CRASSERT(stub.vm_mode == VM_NATIVE);
+        nativeContext = stub.wsInterface.glXCreateContext(getNativeDisplay(), visBits, spuShareCtx, GL_TRUE);
+        CRASSERT(nativeContext != 0);
     }
 
     context = crCalloc(sizeof(ContextInfo));
@@ -255,6 +275,7 @@ stubNewContext( const char *dpyName, GLint visBits, ContextType type,
     context->id = stub.freeContextNumber++;
     context->type = type;
     context->spuContext = spuContext;
+    context->nativeContext = nativeContext;
     context->visBits = visBits;
     context->currentDrawable = NULL;
     crStrncpy(context->dpyName, dpyName, MAX_DPY_NAME);
@@ -292,7 +313,7 @@ InstantiateNativeContext( WindowInfo *window, ContextInfo *context )
 			}
 	}
 
-	context->glxContext = stub.wsInterface.glXCreateContext( window->dpy,
+	context->glxContext = stub.wsInterface.glXCreateContext(getNativeDisplay(),
 				 context->visual, shareCtx, context->direct );
 
 	return context->glxContext ? GL_TRUE : GL_FALSE;
@@ -409,7 +430,7 @@ stubCheckUseChromium( WindowInfo *window )
 	/* If the provided window is CHROMIUM, we're clearly intended
 	 * to create a CHROMIUM context.
 	 */
-	if (window->type == CHROMIUM)
+	if (stub.vm_mode == VM_LIVE_MIGRATION)
 		return GL_TRUE;
 
 	if (stub.ignoreFreeglutMenus) {
@@ -592,25 +613,25 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
     }
 
 
-    if (context->type == NATIVE) {
+    if (stub.vm_mode == VM_NATIVE) {
         /*
          * Native OpenGL MakeCurrent().
          */
 #if defined(GLX)
-        retVal = (GLboolean) stub.wsInterface.glXMakeCurrent( window->dpy, window->drawable, context->glxContext );
+        retVal = (GLboolean) stub.wsInterface.glXMakeCurrent(getNativeDisplay(), window->nativeDrawable, context->glxContext );
 #endif
     }
     else {
         /*
          * SPU chain MakeCurrent().
          */
-        CRASSERT(context->type == CHROMIUM);
+        CRASSERT(stub.vm_mode == VM_LIVE_MIGRATION);
         CRASSERT(context->spuContext >= 0);
 
         if (context->currentDrawable && context->currentDrawable != window)
             crWarning("Rebinding context %p to a different window", context);
 
-        if (window->type == NATIVE) {
+        if (stub.vm_mode == VM_NATIVE) {
             crWarning("Can't rebind a chromium context to a native window\n");
             retVal = 0;
         }
@@ -635,12 +656,12 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
         /* Now, if we've transitions from Chromium to native rendering, or
          * vice versa, we have to change all the OpenGL entrypoint pointers.
          */
-        if (context->type == NATIVE) {
+        if (stub.vm_mode == VM_NATIVE) {
             /* Switch to native API */
             /*printf("  Switching to native API\n");*/
             stubSetDispatch(&stub.nativeDispatch);
         }
-        else if (context->type == CHROMIUM) {
+        else if (stub.vm_mode == VM_LIVE_MIGRATION) {
             /* Switch to stub (SPU) API */
             /*printf("  Switching to spu API\n");*/
             stubSetDispatch(&stub.spuDispatch);
@@ -650,7 +671,7 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
         }
     }
 
-    if (!window->width && window->type == CHROMIUM) {
+    if (!window->width && stub.vm_mode == VM_LIVE_MIGRATION) {
         /* One time window setup */
         int x, y;
         unsigned int winW, winH;
@@ -675,7 +696,7 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
      * to unmapped application windows.  Without this, perfly (for example)
      * opens *lots* of temporary windows which otherwise clutter the screen.
      */
-    if (stub.trackWindowVisibility && window->type == CHROMIUM && window->drawable) {
+    if (stub.trackWindowVisibility && stub.vm_mode == VM_LIVE_MIGRATION && window->drawable) {
         const int mapped = stubIsWindowVisible(window);
         if (mapped != window->mapped) {
             stub.spu->dispatch_table.WindowShow(window->spuWindow, mapped);
@@ -697,12 +718,12 @@ stubDestroyContext( unsigned long contextId )
 
 	CRASSERT(context);
 
-	if (context->type == NATIVE) {
+	if (stub.vm_mode == VM_NATIVE) {
 #if defined(GLX)
-		stub.wsInterface.glXDestroyContext( context->dpy, context->glxContext );
+		stub.wsInterface.glXDestroyContext(getNativeDisplay(), context->glxContext );
 #endif
 	}
-	else if (context->type == CHROMIUM) {
+	else if (stub.vm_mode == VM_LIVE_MIGRATION) {
 		/* Have pack SPU or tilesort SPU, etc. destroy the context */
 		CRASSERT(context->spuContext >= 0);
 		stub.spu->dispatch_table.DestroyContext( context->spuContext );
@@ -727,13 +748,14 @@ stubSwapBuffers( const WindowInfo *window, GLint flags )
 	 * Chromium.
 	 */
 
-	if (window->type == NATIVE) {
+	if (stub.vm_mode == VM_NATIVE) {
 		/*printf("*** Swapping native window %d\n", (int) drawable);*/
 #if defined(GLX)
-		stub.wsInterface.glXSwapBuffers( window->dpy, window->drawable );
+		/* stub.wsInterface.glXSwapBuffers(getNativeDisplay(), window->nativeDrawable ); */
+		stub.wsInterface.glXSwapBuffers(getNativeDisplay(), window->nativeDrawable );
 #endif
 	}
-	else if (window->type == CHROMIUM) {
+	else if (stub.vm_mode == VM_LIVE_MIGRATION) {
 		/* Let the SPU do the buffer swap */
 		/*printf("*** Swapping chromium window %d\n", (int) drawable);*/
 		if (stub.appDrawCursor) {

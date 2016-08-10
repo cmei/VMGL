@@ -202,7 +202,7 @@ packspu_CreateContext( const char *dpyName, GLint visual, GLint shareCtx )
 	contextPtr->DLMState = crDLMNewContext(contextPtr->DLM);
 	
 	/* Not any more in our sequence of contexts */
-	crListPushBack(pack_spu.contextList, (void *) slot);
+	crListPushBack(pack_spu.contextList, (void *) (unsigned long) slot);
 
 #ifdef CHROMIUM_THREADSAFE
 	crUnlockMutex(&_PackMutex);
@@ -212,7 +212,7 @@ packspu_CreateContext( const char *dpyName, GLint visual, GLint shareCtx )
 }
 
 static int integerCompareFunc(const void *e1, const void *e2) {
-    return ( ((int) e1) == ((int) e2) ) ? 0 : 1;
+    return ( ((int) (unsigned long) e1) == ((int) (unsigned long) e2) ) ? 0 : 1;
 }
 
 void PACKSPU_APIENTRY packspu_DestroyContext( GLint ctx )
@@ -247,7 +247,7 @@ void PACKSPU_APIENTRY packspu_DestroyContext( GLint ctx )
 	}
 	
 	/* Now delete from list as well */
-	CRListIterator *thisContext = crListFind(pack_spu.contextList, (void *) slot, integerCompareFunc);
+	CRListIterator *thisContext = crListFind(pack_spu.contextList, (void *) (unsigned long) slot, integerCompareFunc);
 	if (thisContext)
 	    crListErase(pack_spu.contextList, thisContext);
 }

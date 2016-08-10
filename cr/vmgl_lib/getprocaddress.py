@@ -42,6 +42,7 @@ print """
 #include "cr_string.h"
 #include "cr_version.h"
 #include "stub.h"
+#include "getprocaddress.h"
 
 
 struct name_address {{

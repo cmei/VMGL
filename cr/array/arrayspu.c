@@ -45,6 +45,7 @@ static void ARRAYSPU_APIENTRY arrayspu_ArrayElement( GLint index )
 			if (array->a[attr].enabled)
 			{
 				GLint *iPtr;
+                                (void) iPtr;
 				p = array->a[attr].p + index * array->a[attr].stride;
 
 #ifdef CR_ARB_vertex_buffer_object
@@ -318,6 +319,7 @@ static void ARRAYSPU_APIENTRY arrayspu_ArrayElement( GLint index )
 	/* Need to do attrib[0] / vertex position last */
 	if (array->a[VERT_ATTRIB_POS].enabled) {
 		GLint *iPtr;
+                (void) iPtr;
 		p = array->a[VERT_ATTRIB_POS].p + index * array->a[VERT_ATTRIB_POS].stride;
 
 #ifdef CR_ARB_vertex_buffer_object

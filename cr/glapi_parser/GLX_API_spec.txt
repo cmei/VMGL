@@ -78,6 +78,7 @@ param GLXDrawable
 props wrapped
 
 name GetProcAddressARB
+return void *
 param const GLubyte *name
 props wrapped
 

@@ -80,8 +80,16 @@ struct window_info_t
 #if defined(GLX)
 	Display *dpy;
 	GLXDrawable drawable;
+        /* On resume from live migration, reset this to a new xwindow created from the new xserver.
+         */
+        Window nativeDrawable;
 #endif
 };
+
+typedef enum {
+    VM_NATIVE,
+    VM_LIVE_MIGRATION,
+} VMMode;
 
 /* "Global" variables for the stub library */
 typedef struct {
@@ -126,8 +134,11 @@ typedef struct {
 
 	/* windows */
 	CRHashTable *windowTable;
-} Stub;
 
+        /* VM migration */
+        VMMode vm_mode;
+        SPU* render_spu;
+} Stub;
 
 extern Stub stub;
 extern SPUDispatchTable glim;
@@ -138,12 +149,13 @@ extern SPUDispatchTable stubNULLDispatch;
 #if defined(GLX)
 
 /* GLX versions */
-extern WindowInfo *stubGetWindowInfo( Display *dpy, GLXDrawable drawable );
+extern WindowInfo *stubGetWindowInfo( GLXDrawable drawable );
 extern void stubUseXFont( Display *dpy, Font font, int first, int count, int listbase );
 
 #endif
 
 
+extern void stubSetDispatch( SPUDispatchTable *table );
 extern ContextInfo *stubNewContext( const char *dpyName, GLint visBits, ContextType type, unsigned long shareCtx );
 extern void stubDestroyContext( unsigned long contextId );
 extern GLboolean stubMakeCurrent( WindowInfo *window, ContextInfo *context );
@@ -153,6 +165,8 @@ extern void stubSwapBuffers( const WindowInfo *window, GLint flags );
 extern void stubGetWindowGeometry( const WindowInfo *win, int *x, int *y, unsigned int *w, unsigned int *h );
 extern GLboolean stubIsWindowVisible( const WindowInfo *win );
 extern void stubInit(void);
+extern int hasNativeDisplay(void);
+extern Display * getNativeDisplay(void);
 
 extern void APIENTRY stub_GetChromiumParametervCR( GLenum target, GLuint index, GLenum type, GLsizei count, GLvoid *values );
 

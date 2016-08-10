@@ -6,7 +6,7 @@
 # generation.
 
 import sys, string, re
-
+import textwrap
 
 #======================================================================
 
@@ -748,6 +748,12 @@ class GLXAPI(object):
                     return
                 raise RuntimeError("ERROR: line {i} of {filename}; entry has duplicate {field}".format(
                     i=i, filename=self.filename, field=field))
+
+            def param_type(string):
+                tokens = re.findall(r'([a-zA-Z_][a-zA-Z0-9_]*|\*)', string)
+                if len(tokens) > 1 and tokens[-1] not in {'const', '*'}:
+                    return ' '.join(tokens[:-1])
+                return ' '.join(tokens)
         
             i = 0
             for line in f:
@@ -773,7 +779,7 @@ class GLXAPI(object):
                 if m:
                     if 'params' not in record:
                         record['params'] = []
-                    record['params'].append(m.group(1))
+                    record['params'].append(param_type(m.group(1)))
                 m = re.search(r'props\s+(.*)', line)
                 if m:
                     put(i, record, 'props', set(re.split(r'\s+', m.group(1))))
@@ -783,5 +789,42 @@ class GLXAPI(object):
             return self.records[func_name]['props']
         return set()
 
+    @property
+    def funcs(self):
+        return self.records.keys()
+
 def parse_glx(filename="../glapi_parser/GLX_API_spec.txt"):
     return GLXAPI(filename)
+
+def paragraph_to_lines(paragraph):
+    return textwrap.dedent(paragraph).lstrip("\n").rstrip("\n").split("\n")
+
+def write_lines(s, lines, indent=0, lbreak=True):
+    if len(lines) == 0:
+        return
+    if lbreak:
+        s.write("\n")
+    for line in lines:
+        s.write("{indent}{line}\n".format(indent=indent*'    ', line=line))
+
+class Writer:
+    def __init__(self, stream):
+        self.stream = stream
+
+    def __call__(self, string, **kwargs):
+        return write_lines(self.stream, paragraph_to_lines(string), **kwargs)
+
+    def close(self):
+        self.stream.close()
+
+class _DevNullWriter:
+    def __init__(self, stream=None):
+        pass
+
+    def __call__(self, string, **kwargs):
+        """Ignore any writes"""
+        pass
+
+    def close(self):
+        pass
+DevNullWriter = _DevNullWriter()

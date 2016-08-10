@@ -523,11 +523,11 @@ Bool glXMakeCurrent( Display *dpy, GLXDrawable drawable, GLXContext ctx )
 	WindowInfo *window;
 	Bool retVal;
 
-	crDebug("glXMakeCurrent(%p, 0x%x, 0x%x)", (void *) dpy, (int) drawable, (int) ctx);
+	crDebug("glXMakeCurrent(%p, 0x%x, 0x%lx)", (void *) dpy, (int) drawable, (unsigned long) ctx);
 
 	if (ctx && drawable) {
 		context = (ContextInfo *) crHashtableSearch(stub.contextTable, (unsigned long) ctx);
-		window = stubGetWindowInfo(dpy, drawable);
+		window = stubGetWindowInfo(drawable);
 
 		if (context && context->type == UNDECIDED) {
 			XSync(dpy, 0); /* sync to force window creation on the server */
@@ -783,7 +783,7 @@ Bool glXQueryVersion( Display *dpy, int *major, int *minor )
 
 void glXSwapBuffers( Display *dpy, GLXDrawable drawable )
 {
-	const WindowInfo *window = stubGetWindowInfo(dpy, drawable);
+	const WindowInfo *window = stubGetWindowInfo(drawable);
 	stubSwapBuffers( window, 0 );
 }
 
@@ -1226,3 +1226,128 @@ int glXChannelRectSyncSGIX(Display *dpy, int scrn, int chan, GLenum synctype)
 }
 
 #endif /* GLX_SGIX_video_resize */
+
+
+static WindowInfo* 
+stubCreateWindowInfo(Window ret,
+    Display*		display,
+    Window		parent,
+    int			x,
+    int			y,
+    unsigned int	width,
+    unsigned int	height,
+    unsigned int	border_width,
+    int			depth,
+    unsigned int	class,
+    Visual*		visual,
+    unsigned long	valuemask,
+    XSetWindowAttributes*	attributes)
+{
+    WindowInfo *winInfo = (WindowInfo *) crCalloc(sizeof(WindowInfo));
+    if (!winInfo) {
+        crDebug("Failed to allocate WindowInfo");
+        return NULL;
+    }
+#ifdef GLX
+    crStrncpy(winInfo->dpyName, DisplayString(display), MAX_DPY_NAME);
+    winInfo->dpyName[MAX_DPY_NAME-1] = 0;
+    winInfo->dpy = display;
+    if (hasNativeDisplay()) {
+        winInfo->nativeDrawable = stub.wsInterface.XCreateWindow(getNativeDisplay(), 
+                parent,
+                x, y,
+                width, height,
+                border_width,
+                depth,
+                class,
+                visual,
+                valuemask,
+                attributes);
+        CRASSERT(winInfo->nativeDrawable);
+    } else {
+        winInfo->nativeDrawable = 0;
+    }
+#endif
+    winInfo->drawable = ret;
+    winInfo->type = UNDECIDED;
+    winInfo->spuWindow = -1;
+    winInfo->mapped = -1; /* don't know */
+    CRASSERT(crHashtableSearch(stub.windowTable, (unsigned int) ret) == NULL);
+    crHashtableAdd(stub.windowTable, (unsigned int) ret, winInfo);
+    return winInfo;
+}
+
+
+Window XCreateWindow(
+    Display*		display,
+    Window		parent,
+    int			x,
+    int			y,
+    unsigned int	width,
+    unsigned int	height,
+    unsigned int	border_width,
+    int			depth,
+    unsigned int	class,
+    Visual*		visual,
+    unsigned long	valuemask,
+    XSetWindowAttributes*	attributes
+)
+{
+    CRASSERT(stub.wsInterface.XCreateWindow);
+    stubInit();
+
+    Window ret = stub.wsInterface.XCreateWindow(display,
+            parent,
+            x,
+            y,
+            width,
+            height,
+            border_width,
+            depth,
+            class,
+            visual,
+            valuemask,
+            attributes);
+    if (!ret)
+        return 0;
+    WindowInfo * winInfo = stubCreateWindowInfo(ret, display,
+            parent,
+            x,
+            y,
+            width,
+            height,
+            border_width,
+            depth,
+            class,
+            visual,
+            valuemask,
+            attributes);
+    if (!winInfo)
+        return 0;
+    return ret;
+}
+
+extern int XDestroyWindow(
+    Display*		display,
+    Window		w
+)
+{
+    int ret;
+
+    CRASSERT(stub.wsInterface.XDestroyWindow);
+    stubInit();
+
+    WindowInfo *winInfo = stubGetWindowInfo(w);
+    if (winInfo->nativeDrawable && stub.vm_mode == VM_NATIVE) {
+        CR_DEBUG(DB_X11, "XDestroy native window: dpy = 0x%lx, nativeDrawable = 0x%lx", (unsigned long) getNativeDisplay(), winInfo->nativeDrawable);
+        ret = stub.wsInterface.XDestroyWindow(getNativeDisplay(), winInfo->nativeDrawable);
+        CRASSERT(ret == 0);
+    } else {
+        CR_DEBUG(DB_X11, "XDestroy migration window: dpy = 0x%lx, drawable = 0x%lx", (unsigned long) winInfo->dpy, winInfo->drawable);
+        ret = stub.wsInterface.XDestroyWindow(winInfo->dpy, winInfo->drawable);
+        CRASSERT(ret == 0);
+    }
+    crHashtableDelete(stub.windowTable, (unsigned int) winInfo->drawable, NULL);
+    crFree(winInfo);
+    return ret;
+}

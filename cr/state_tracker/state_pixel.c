@@ -532,6 +532,7 @@ void crStatePixelDiff(CRPixelBits *b, CRbitvalue *bitID,
 	CRPixelState *from = &(fromCtx->pixel);
 	CRPixelState *to = &(toCtx->pixel);
 	int j, i;
+        (void) i;
 	CRbitvalue nbitID[CR_MAX_BITARRAY];
 	for (j=0;j<CR_MAX_BITARRAY;j++)
 		nbitID[j] = ~bitID[j];
@@ -655,6 +656,7 @@ void crStatePixelSwitch(CRPixelBits *b, CRbitvalue *bitID,
 	CRPixelState *from = &(fromCtx->pixel);
 	CRPixelState *to = &(toCtx->pixel);
 	int j, i;
+        (void)i;
 	CRbitvalue nbitID[CR_MAX_BITARRAY];
 	for (j=0;j<CR_MAX_BITARRAY;j++)
 		nbitID[j] = ~bitID[j];

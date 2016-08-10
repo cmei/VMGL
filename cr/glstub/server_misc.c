@@ -69,6 +69,7 @@ void SERVER_DISPATCH_APIENTRY glStubDispatchChromiumParametervCR(GLenum target, 
 		/* message from tilesort SPU to set new tile bounds */
 		{
 			GLint numTiles, muralWidth, muralHeight, server, tiles;
+                        (void) server;
 			GLint *tileBounds;
 			CRASSERT(count >= 4);
 			CRASSERT((count - 4) % 4 == 0); /* must be multiple of four */

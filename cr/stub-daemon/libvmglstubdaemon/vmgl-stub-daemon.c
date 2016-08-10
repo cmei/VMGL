@@ -78,6 +78,7 @@ static int listenOnPort(unsigned short port) {
     int sock;
     struct sockaddr_in addr;
     void *dummy;
+    (void) dummy;
     size_t lenAddr = sizeof (struct sockaddr_in);
     
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) <= 0)

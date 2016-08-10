@@ -20,3 +20,5 @@ LIB_DEFS += render.def
 include $(TOP)/cr.mk
 
 LDFLAGS += -lXmu -lX11
+LDFLAGS += -Wl,--no-undefined
+

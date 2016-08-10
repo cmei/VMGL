@@ -13,6 +13,7 @@
 #include "cr_environment.h"
 #include "cr_process.h"
 #include "cr_rand.h"
+#include "getprocaddress.h"
 #include "stub.h"
 #include <stdlib.h>
 #include <signal.h>
@@ -209,6 +210,7 @@ static void stubInitVars(void)
 	stub.currentContext = NULL;
 
 	stub.windowTable = crAllocHashtable();
+        stub.vm_mode = VM_NATIVE;
 
 	defaultWin = (WindowInfo *) crCalloc(sizeof(WindowInfo));
 	defaultWin->type = CHROMIUM;
@@ -221,6 +223,17 @@ static void stubInitVars(void)
 	signal(SIGPIPE, SIG_IGN); /* the networking code should catch this */
 }
 
+#ifdef CR_X11_SYNC_CALLS
+__attribute__((constructor))
+static void init_sync_calls(void) 
+{
+    crDebug("Making X11 calls synchronous to debug failed X calls (note this will make things slower)");
+    /* Must be called before XOpenDisplay(...).
+     */
+    _Xdebug = 1;
+}
+#endif
+
 /**
  * Do one-time initializations for the library.
  */
@@ -230,6 +243,7 @@ stubInit(void)
 	
 	int num_spus;
 	int spu_ids[3];
+	/* int native_spu_ids[1]; */
 	char *spu_names[3];
 
 	static int stub_initialized = 0;
@@ -246,12 +260,17 @@ stubInit(void)
 	spu_names[0] = crStrdup( "array" );
 	spu_names[1] = crStrdup( "feedback" );
 	spu_names[2] = crStrdup( "pack" );
-
 	stub.spu = crSPULoadChain( num_spus, spu_ids, spu_names, stub.spu_dir, NULL );
-
 	crFree(spu_names[0]);
 	crFree(spu_names[1]);
 	crFree(spu_names[2]);
+
+        /* VM Migration */
+	/* native_spu_ids[0] = 4; */
+	/* spu_names[0] = crStrdup("render"); */
+	/* spu_names[1] = NULL; */
+	/* stub.render_spu = crSPULoadChain(1, native_spu_ids, spu_names, NULL, &stub); */
+        /* crFree(spu_names[0]); */
 
 	crSPUInitDispatchTable( &glim );
 
@@ -267,6 +286,10 @@ stubInit(void)
 
         /* Load function addresses so that glXGetProcAddress returns glX* function addresses */
         initProcAddressTable();
+
+        /* Ok, switch to native */
+        crDebug("Switching to native dispatch");
+        stubSetDispatch(&stub.nativeDispatch);
 }
 
 

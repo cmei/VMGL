@@ -115,6 +115,7 @@ packspuFlush(void *arg )
 {
 	ThreadInfo *thread = (ThreadInfo *) arg;
 	ContextInfo *ctx;
+        (void) ctx;
 	unsigned int len;
 	CRMessageOpcodes *hdr;
 	CRPackBuffer *buf;

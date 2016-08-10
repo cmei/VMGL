@@ -259,7 +259,7 @@ static void packspuResumeContext(void *element, void *arg)
 
 	ThreadInfo *thread = (ThreadInfo *) arg;
 	GLint sharedServerCtx = (GLint) -1;
-	int slot = (int) element;
+	int slot = (int) (unsigned long) element;
 
 	/* Get this context */
         if ((slot < 0) || (slot >= pack_spu.numContexts) || (!(pack_spu.context[slot].clientState))) {

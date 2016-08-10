@@ -276,7 +276,7 @@ ifdef PROGRAM
 endif
 endif
 endif
-	@$(RM) $(OBJS) $(TEMPFILES) $(TARGET)
+	$(RM) $(OBJS) $(TEMPFILES) $(TARGET)
 ifneq ($(SLOP)HACK, HACK)
 	@$(ECHO) "Also blowing away:    $(SLOP)"
 	@$(RM) $(SLOP)

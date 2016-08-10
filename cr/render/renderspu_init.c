@@ -9,6 +9,7 @@
 #include "cr_error.h"
 #include "cr_string.h"
 #include "cr_url.h"
+#include "cr_environment.h"
 #include "renderspu.h"
 #include <stdio.h>
 
@@ -84,6 +85,13 @@ renderSPUInit( int id, SPU *child, SPU *self,
 
 	render_spu.id = id;
 	renderspuGatherConfiguration(&render_spu);
+
+        /* const char * nativeDisplay = crGetenv("CR_NATIVE_DISPLAY"); */
+        /* if (nativeDisplay) { */
+        /*     crDebug("Setting render_spu display = %s", nativeDisplay); */
+        /*     crStrncpy(render_spu.display_string, nativeDisplay, sizeof(render_spu.display_string)); */
+        /* } */
+
 	if (render_spu.swap_master_url)
 		swapsyncConnect();
 

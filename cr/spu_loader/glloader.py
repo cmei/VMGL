@@ -221,6 +221,11 @@ print """
 
 """
 
+x11_functions = [
+    "XCreateWindow",
+    "XDestroyWindow",
+]
+
 useful_glx_functions = [
 	"glXGetConfig",
 	"glXQueryExtension",
@@ -263,11 +268,18 @@ possibly_useful_glx_functions = [
 
 print '\t/* GLX */'
 
+def dlopen_gl_func(fun):
+    print '\tinterface->%s = (%sFunc_t) crDLLGetNoError( glDll, "%s" );' % (fun, fun, fun)
+
 # XXX merge these loops?
 for fun in useful_glx_functions:
-	print '\tinterface->%s = (%sFunc_t) crDLLGetNoError( glDll, "%s" );' % (fun, fun, fun)
+    dlopen_gl_func(fun)
 for fun in possibly_useful_glx_functions:
-	print '\tinterface->%s = (%sFunc_t) crDLLGetNoError( glDll, "%s" );' % (fun, fun, fun)
+    dlopen_gl_func(fun)
+
+print '\t/* X11 */'
+for fun in x11_functions:
+    dlopen_gl_func(fun)
 
 print """
 	if (!entry)

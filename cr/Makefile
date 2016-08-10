@@ -5,7 +5,7 @@
 
 TOP = .
 
-SUBDIRS = util spu_loader packer state_tracker unpacker dlm vmgl_lib feedback array passthrough render error XExtension pack glstub stub-daemon/libvmglstubdaemon stub-daemon
+SUBDIRS = util spu_loader packer state_tracker unpacker dlm vmgl_lib feedback array passthrough render error XExtension pack glstub stub-daemon/libvmglstubdaemon stub-daemon glreload
 
 include $(TOP)/cr.mk
 
