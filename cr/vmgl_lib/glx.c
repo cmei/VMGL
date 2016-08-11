@@ -9,58 +9,211 @@
 #include "cr_spu.h"
 #include "cr_mem.h"
 #include "cr_string.h"
+#include "cr_list.h"
+#include "cr_environment.h"
 #include "stub.h"
 
 
-/** For optimizing glXMakeCurrent */
-static Display *currentDisplay = NULL;
-static GLXDrawable currentDrawable = 0;
+static struct CRList* visualInfoList;
 
+__attribute__((constructor))
+static void init_glx(void)
+{
+    visualInfoList = crAllocList();
+}
 
-/**
- * Keep a list of structures which associates X visual IDs with
- * Chromium visual bitmasks.
- */
-struct VisualInfo {
-	Display *dpy;
-	int screen;
-	VisualID visualid;
-	int visBits;
-	struct VisualInfo *next;
-};
+static int
+Attrib( Display * dpy, XVisualInfo *visual, int attrib )
+{
+	int value = 0;
+	stub.wsInterface.glXGetConfig( dpy, visual, attrib, &value );
+	return value;
+}
 
-static struct VisualInfo *VisualInfoList = NULL;
+static VMMode getVMMode(Display *dpy)
+{
+    if (dpy == getNativeDisplay()) {
+        return VM_NATIVE;
+    }
+    return VM_LIVE_MIGRATION;
+}
 
 static void
-AddVisualInfo(Display *dpy, int screen, VisualID visualid, int visBits)
+AddVisualInfo(Display *dpy, int screen, XVisualInfo* visual, VisualID visualid, int visBits, int * attribList)
 {
-	struct VisualInfo *v;
-	for (v = VisualInfoList; v; v = v->next) {
-		if (v->dpy == dpy && v->screen == screen && v->visualid == visualid) {
-			v->visBits |= visBits;
-			return;
-		}
-	}
-	v = (struct VisualInfo *) crAlloc(sizeof(struct VisualInfo));
-	v->dpy = dpy;
-	v->screen = screen;
-	v->visualid = visualid;
+        int i;
+	VisualInfo *v = FindVisualInfo(visual);
+        if (v) {
+            v->visBits |= visBits;
+            return;
+        }
+	v = (VisualInfo *) crAlloc(sizeof(VisualInfo));
+        v->visual = visual;
 	v->visBits = visBits;
-	v->next = VisualInfoList;
-	VisualInfoList = v;
+        v->attribListSize = 0;
+        v->attribList = NULL;
+        v->vm_mode = getVMMode(dpy);
+        if (attribList != NULL) {
+            for (i = 0; attribList[i] != None; i++) {
+                v->attribListSize += 1;
+            }
+            v->attribList = crAlloc(sizeof(v->attribList[0])*v->attribListSize);
+            crMemcpy(v->attribList, attribList, sizeof(v->attribList[0])*v->attribListSize);
+        } else if (visual != NULL) {
+            int attrs[64];
+
+            int n = 0;
+            attrs[n++] = GLX_USE_GL;
+            attrs[n++] = Attrib(dpy, visual, GLX_USE_GL);
+            /* Ignored. Only visuals that can be rendered with GLX are considered. */
+
+            attrs[n++] = GLX_BUFFER_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_BUFFER_SIZE);
+            /* Must be followed by a nonnegative integer that indicates the desired color index buffer 
+             * size. The smallest index buffer of at least the specified size is preferred. Ignored if 
+             * GLX_RGBA is asserted. */
+
+            attrs[n++] = GLX_LEVEL;
+            attrs[n++] = Attrib(dpy, visual, GLX_LEVEL);
+            /* Must be followed by an integer buffer-level specification. This specification is 
+             * honored exactly. Buffer level zero corresponds to the main frame buffer of the display. 
+             * Buffer level one is the first overlay frame buffer, level two the second overlay frame 
+             * buffer, and so on. Negative buffer levels correspond to underlay frame buffers. */
+
+            attrs[n++] = GLX_AUX_BUFFERS;
+            attrs[n++] = Attrib(dpy, visual, GLX_AUX_BUFFERS);
+            /* Must be followed by a nonnegative integer that indicates the desired number of 
+             * auxiliary buffers. Visuals with the smallest number of auxiliary buffers that meets or 
+             * exceeds the specified number are preferred. */
+
+            attrs[n++] = GLX_RED_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_RED_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * the smallest available red buffer is preferred. Otherwise, the largest available red 
+             * buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_GREEN_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_GREEN_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * the smallest available green buffer is preferred. Otherwise, the largest available 
+             * green buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_BLUE_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_BLUE_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * the smallest available blue buffer is preferred. Otherwise, the largest available blue 
+             * buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_ALPHA_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_ALPHA_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * the smallest available alpha buffer is preferred. Otherwise, the largest available 
+             * alpha buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_DEPTH_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_DEPTH_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * visuals with no depth buffer are preferred. Otherwise, the largest available depth 
+             * buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_STENCIL_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_STENCIL_SIZE);
+            /* Must be followed by a nonnegative integer that indicates the desired number of stencil 
+             * bitplanes. The smallest stencil buffer of at least the specified size is preferred. If 
+             * the desired value is zero, visuals with no stencil buffer are preferred. */
+
+            attrs[n++] = GLX_ACCUM_RED_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_ACCUM_RED_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * visuals with no red accumulation buffer are preferred. Otherwise, the largest possible 
+             * red accumulation buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_ACCUM_GREEN_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_ACCUM_GREEN_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * visuals with no green accumulation buffer are preferred. Otherwise, the largest 
+             * possible green accumulation buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_ACCUM_BLUE_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_ACCUM_BLUE_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * visuals with no blue accumulation buffer are preferred. Otherwise, the largest possible 
+             * blue accumulation buffer of at least the minimum size is preferred. */
+
+            attrs[n++] = GLX_ACCUM_ALPHA_SIZE;
+            attrs[n++] = Attrib(dpy, visual, GLX_ACCUM_ALPHA_SIZE);
+            /* Must be followed by a nonnegative minimum size specification. If this value is zero, 
+             * visuals with no alpha accumulation buffer are preferred. Otherwise, the largest 
+             * possible alpha accumulation buffer of at least the minimum size is preferred. */
+
+            if (Attrib(dpy, visual, GLX_RGBA))
+                attrs[n++] = GLX_RGBA;
+            /* If present, only TrueColor and DirectColor visuals are considered. Otherwise, only 
+             * PseudoColor and StaticColor visuals are considered. */
+
+            if (Attrib(dpy, visual, GLX_DOUBLEBUFFER))
+                attrs[n++] = GLX_DOUBLEBUFFER;
+            /* If present, only double-buffered visuals are considered. Otherwise, only 
+             * single-buffered visuals are considered. */
+
+            if (Attrib(dpy, visual, GLX_STEREO))
+                attrs[n++] = GLX_STEREO;
+            /* If present, only stereo visuals are considered. Otherwise, only monoscopic visuals are 
+             * considered. */
+
+            attrs[n++] = None;
+
+            v->attribList = crAlloc(sizeof(attrs[0])*n);
+            crMemcpy(v->attribList, attrs, sizeof(attrs[0])*n);
+            v->attribListSize = n;
+
+        } else {
+            crError("Cannot track state of XVisualInfo; cannot determine attribList used to construct it");
+        }
+
+        crListPushBack(visualInfoList, v);
 }
 
-static struct VisualInfo *
-FindVisualInfo(Display *dpy, int screen, VisualID visualid)
+/* Return true iff A is a subset of the bits set in B: 
+ * e.g.
+ * A:      101010
+ * B:      101000
+ * ~B:     010111
+ * A & ~B: 000010
+ *
+ * A:      101000
+ * B:      101010
+ * ~B:     010101
+ * A & ~B: 000000
+*/
+#define IS_SUBSET_OF(A, B) (((A) & (~(B))) == 0)
+
+VisualInfo *
+FindVisualInfo(XVisualInfo* vis)
 {
-	struct VisualInfo *v;
-	for (v = VisualInfoList; v; v = v->next) {
-		if (v->dpy == dpy && v->screen == screen && v->visualid == visualid)
-			return v;
-	}
-	return NULL;
+    CRListIterator *iter;
+    VisualInfo *v;
+    for ( iter = crListBegin( visualInfoList ); iter != crListEnd( visualInfoList ); iter = crListNext( iter ) ) {
+        v = crListElement(iter);
+        if (v->visual == vis)
+            return v;
+    }
+    return NULL;
 }
 
+static const char * vm_mode_str(VMMode vm_mode)
+{
+    switch (vm_mode)
+    {
+        case VM_LIVE_MIGRATION:
+            return "VM_LIVE_MIGRATION";
+        case VM_NATIVE:
+            return "VM_NATIVE";
+        default:
+            CRASSERT(0);
+            return NULL;
+    }
+}
 
 /**
  * Set this to 1 if you want to build stub functions for the
@@ -371,38 +524,10 @@ glXChooseVisual( Display *dpy, int screen, int *attribList )
 	}
 
 	if (vis) {
-		AddVisualInfo(dpy, screen, vis->visual->visualid, visBits);
+		AddVisualInfo(dpy, screen, vis, vis->visual->visualid, visBits, attribList);
 	}
 	return vis;
 }
-
-/**
- **  There is a problem with glXCopyContext.
- ** IRIX and Mesa both define glXCopyContext
- ** to have the mask argument being a 
- ** GLuint.  XFree 4 and oss.sgi.com
- ** define it to be an unsigned long.
- ** Solution: We don't support
- ** glXCopyContext anyway so we'll just
- ** #ifdef out the code.
- */
-void
-glXCopyContext( Display *dpy, GLXContext src, GLXContext dst, 
-#if defined(PLAYSTATION2)
-GLuint mask )
-/*  #elif defined(SunOS)
-  unsigned int mask ) */
-#else
-unsigned long mask )
-#endif
-{
-	(void) dpy;
-	(void) src;
-	(void) dst;
-	(void) mask;
-	crWarning( "Unsupported GLX Call: glXCopyContext()" );
-}
-
 
 /**
  * Get the display string for the given display pointer.
@@ -437,76 +562,57 @@ stubGetDisplayString( Display *dpy, char *nameResult, int maxResult )
 	}
 }
 
+GLint GetVisBits(VisualInfo* visualInfo)
+{
+    /* if (visualInfo) */
+    return visualInfo->visBits;
 
+/* Currently, we're assuming we always have a visualInfo */
+#if 0
+    GLint visBits = CR_RGB_BIT | CR_DOUBLE_BIT | CR_DEPTH_BIT; /* default vis */
+    if (stub.force_pbuffers) {
+        crDebug("Forcing use of Pbuffers");
+        visBits |= CR_PBUFFER_BIT;
+    }
+
+    return visBits;
+#endif
+}
+
+DisplayInfo* trans_DisplayInfo(Display *dpy)
+{
+    DisplayInfo* displayInfo = crHashtableSearch(stub.displayTable, (unsigned long) dpy);
+    CRASSERT(displayInfo);
+    CRASSERT(displayInfo->currentDpy);
+    return displayInfo;
+}
+VisualInfo* trans_VisualInfo(XVisualInfo *vis)
+{
+    VisualInfo* visualInfo = crHashtableSearch(stub.visualTable, (unsigned long) vis);
+    CRASSERT(visualInfo);
+    CRASSERT(visualInfo->currentVisual);
+    return visualInfo;
+}
 
 GLXContext
-glXCreateContext(Display *dpy, XVisualInfo *vis, GLXContext share, Bool direct)
+glXCreateContext(Display *dpy, XVisualInfo *vis, GLXContext shareList, Bool direct)
 {
-	char dpyName[MAX_DPY_NAME];
-	ContextInfo *context;
-	int visBits = CR_RGB_BIT | CR_DOUBLE_BIT | CR_DEPTH_BIT; /* default vis */
+	ContextInfo *contextInfo;
+        GLint visBits;
 
 	stubInit();
 
 	CRASSERT(stub.contextTable);
 
-	stubGetDisplayString(dpy, dpyName, MAX_DPY_NAME);
-	if (stub.haveNativeOpenGL) {
-		int foo, bar;
-		if (stub.wsInterface.glXQueryExtension(dpy, &foo, &bar)) {
-			/* If we have real GLX, compute the Chromium visual bitmask now.
-			 * otherwise, we'll use the default desiredVisual bitmask.
-			 */
-			struct VisualInfo *v = FindVisualInfo(dpy, DefaultScreen(dpy),vis->visual->visualid);
-			if (v) {
-				visBits = v->visBits;
-				/*crDebug("%s visBits=0x%x", __FUNCTION__, visBits);*/
-			}
-			else {
-				/* For some reason, we haven't tested this visual
-				 * before.  This could be because the visual was found 
-				 * through a different display connection to the same
-				 * display (as happens in GeoProbe), or through a
-				 * connection to an external daemon that queries
-				 * visuals.  If we can query it directly, we can still
-				 * find the proper visBits.
-				 */
-				int newVisBits = QueryVisBits(dpy, vis);
-				if (newVisBits > 0) {
-					AddVisualInfo(dpy, DefaultScreen(dpy), vis->visual->visualid, newVisBits);
-					crDebug("Application used unexpected but queryable visual id 0x%x", (int) vis->visual->visualid);
-					visBits = newVisBits;
-				}
-				else {
-					crWarning("Application used unexpected and unqueryable visual id 0x%x; using default visbits", (int) vis->visual->visualid);
-				}
-			}
+        DisplayInfo* displayInfo = trans_DisplayInfo(dpy);
+        VisualInfo* visualInfo = trans_VisualInfo(vis);
 
-			/*crDebug("ComputeVisBits(0x%x) = 0x%x", (int)vis->visual->visualid, visBits);*/
-			if (stub.force_pbuffers) {
-				crDebug("Forcing use of Pbuffers");
-				visBits |= CR_PBUFFER_BIT;
-			}
+        visBits = GetVisBits(visualInfo);
 
-			if (!v) {
-				 AddVisualInfo(dpy, DefaultScreen(dpy),vis->visual->visualid, visBits);
-			}
+	contextInfo = add_ContextInfo(displayInfo, visualInfo, visBits, UNDECIDED, direct, shareList);
+        CRASSERT(contextInfo);
 
-		}
-	}
-	else {
-		crDebug("No native OpenGL; cannot compute visbits");
-	}
-
-	context = stubNewContext(dpyName, visBits, UNDECIDED, (unsigned long) share);
-	if (!context)
-		return 0;
-
-	context->dpy = dpy;
-	context->visual = vis;
-	context->direct = direct;
-
-	return (GLXContext) context->id;
+	return (GLXContext) contextInfo->id;
 }
 
 
@@ -519,55 +625,36 @@ void glXDestroyContext( Display *dpy, GLXContext ctx )
 
 Bool glXMakeCurrent( Display *dpy, GLXDrawable drawable, GLXContext ctx )
 {
-	ContextInfo *context;
-	WindowInfo *window;
-	Bool retVal;
+    DisplayInfo* displayInfo;
+    ContextInfo *context = NULL;
+    WindowInfo *window = NULL;
+    Bool retVal;
 
-	crDebug("glXMakeCurrent(%p, 0x%x, 0x%lx)", (void *) dpy, (int) drawable, (unsigned long) ctx);
+    crDebug("glXMakeCurrent(%p, 0x%x, 0x%lx)", (void *) dpy, (int) drawable, (unsigned long) ctx);
 
-	if (ctx && drawable) {
-		context = (ContextInfo *) crHashtableSearch(stub.contextTable, (unsigned long) ctx);
-		window = stubGetWindowInfo(drawable);
+    if (ctx && drawable) {
+        context = (ContextInfo *) crHashtableSearch(stub.contextTable, (unsigned long) ctx);
+        window = stubGetWindowInfo(drawable);
 
-		if (context && context->type == UNDECIDED) {
-			XSync(dpy, 0); /* sync to force window creation on the server */
-		}
-	}
-	else {
-		dpy = NULL;
-		window = NULL;
-		context = NULL;
-	}
+        if (context && context->type == UNDECIDED) {
+            XSync(dpy, 0); /* sync to force window creation on the server */
+        }
+    }
 
-	currentDisplay = dpy;
-	currentDrawable = drawable;
+    displayInfo = crHashtableSearch(stub.displayTable, (unsigned long) dpy);
+    CRASSERT(displayInfo);
 
-	retVal = stubMakeCurrent(window, context);
-	return retVal;
+    stub.currentDisplay = displayInfo;
+    stub.currentDrawable = drawable;
+
+    retVal = stubMakeCurrent(window, context);
+    return retVal;
 }
 
-
-GLXPixmap glXCreateGLXPixmap( Display *dpy, XVisualInfo *vis, Pixmap pixmap )
-{
-	(void) dpy;
-	(void) vis;
-	(void) pixmap;
-
-	stubInit();
-	crWarning( "Unsupported GLX Call: glXCreateGLXPixmap()" );
-	return (GLXPixmap) 0;
-}
-
-void glXDestroyGLXPixmap( Display *dpy, GLXPixmap pix )
-{
-	(void) dpy;
-	(void) pix;
-	crWarning( "Unsupported GLX Call: glXDestroyGLXPixmap()" );
-}
 
 int glXGetConfig( Display *dpy, XVisualInfo *vis, int attrib, int *value )
 {
-	struct VisualInfo *v;
+	VisualInfo *v;
 	int visBits;
 
 	if (!vis) {
@@ -576,7 +663,7 @@ int glXGetConfig( Display *dpy, XVisualInfo *vis, int attrib, int *value )
 		return GLX_BAD_VISUAL;
 	}
 
-	v = FindVisualInfo(dpy, DefaultScreen(dpy), vis->visual->visualid);
+	v = FindVisualInfo(vis);
 	if (v) {
 		visBits = v->visBits;
 	}
@@ -735,7 +822,9 @@ int glXGetConfig( Display *dpy, XVisualInfo *vis, int attrib, int *value )
 		
 	}
 
-	AddVisualInfo(dpy, DefaultScreen(dpy), vis->visual->visualid, visBits);
+        if (!v) {
+            AddVisualInfo(dpy, DefaultScreen(dpy), vis, vis->visual->visualid, visBits, NULL);
+        }
 
 	return 0;
 }
@@ -750,12 +839,16 @@ GLXContext glXGetCurrentContext( void )
 
 GLXDrawable glXGetCurrentDrawable( void )
 {
-	return currentDrawable;
+	return stub.currentDrawable;
 }
 
+Display * getNativeDisplay(void)
+{
+    return stub.currentDisplay ? stub.currentDisplay->currentDpy : NULL;
+}
 Display *glXGetCurrentDisplay( void )
 {
-	return currentDisplay;
+    return stub.currentDisplay ? stub.currentDisplay->dpy : NULL;
 }
 
 Bool glXIsDirect( Display *dpy, GLXContext ctx )
@@ -902,332 +995,6 @@ CR_GLXFuncPtr glXGetProcAddress( const GLubyte *name )
 	return (CR_GLXFuncPtr) crGetProcAddress( (const char *) name );
 }
 
-
-#if GLX_EXTRAS
-
-GLXPbufferSGIX glXCreateGLXPbufferSGIX(Display *dpy, GLXFBConfigSGIX config,
-																			 unsigned int width, unsigned int height,
-																			 int *attrib_list)
-{
-	(void) dpy;
-	(void) config;
-	(void) width;
-	(void) height;
-	(void) attrib_list;
-	crWarning("glXCreateGLXPbufferSGIX not implemented by VMGL/Chromium");
-	return 0;
-}
-
-void glXDestroyGLXPbufferSGIX(Display *dpy, GLXPbuffer pbuf)
-{
-	(void) dpy;
-	(void) pbuf;
-	crWarning("glXDestroyGLXPbufferSGIX not implemented by VMGL/Chromium");
-}
-
-void glXSelectEventSGIX(Display *dpy, GLXDrawable drawable, unsigned long mask)
-{
-	(void) dpy;
-	(void) drawable;
-	(void) mask;
-}
-
-void glXGetSelectedEventSGIX(Display *dpy, GLXDrawable drawable, unsigned long *mask)
-{
-	(void) dpy;
-	(void) drawable;
-	(void) mask;
-}
-
-int glXQueryGLXPbufferSGIX(Display *dpy, GLXPbuffer pbuf,
-													 int attribute, unsigned int *value)
-{
-	(void) dpy;
-	(void) pbuf;
-	(void) attribute;
-	(void) value;
-	crWarning("glXQueryGLXPbufferSGIX not implemented by VMGL/Chromium");
-	return 0;
-}
-
-int glXGetFBConfigAttribSGIX(Display *dpy, GLXFBConfig config,
-														 int attribute, int *value)
-{
-	(void) dpy;
-	(void) config;
-	(void) attribute;
-	(void) value;
-	crWarning("glXGetFBConfigAttribSGIX not implemented by VMGL/Chromium");
-	return 0;
-}
-
-GLXFBConfigSGIX *glXChooseFBConfigSGIX(Display *dpy, int screen,
-					 int *attrib_list, int *nelements)
-{
-	(void) dpy;
-	(void) screen;
-	(void) attrib_list;
-	(void) nelements;
-	crWarning("glXChooseFBConfigSGIX not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-GLXPixmap glXCreateGLXPixmapWithConfigSGIX(Display *dpy,
-																					 GLXFBConfig config,
-																					 Pixmap pixmap)
-{
-	(void) dpy;
-	(void) config;
-	(void) pixmap;
-	crWarning("glXCreateGLXPixmapWithConfigSGIX not implemented by VMGL/Chromium");
-	return 0;	}
-
-GLXContext glXCreateContextWithConfigSGIX(Display *dpy, GLXFBConfig config,
-																					int render_type,
-																					GLXContext share_list,
-																					Bool direct)
-{
-	(void) dpy;
-	(void) config;
-	(void) render_type;
-	(void) share_list;
-	(void) direct;
-	crWarning("glXCreateContextWithConfigSGIX not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-XVisualInfo *glXGetVisualFromFBConfigSGIX(Display *dpy,
-																					GLXFBConfig config)
-{
-	(void) dpy;
-	(void) config;
-	crWarning("glXGetVisualFromFBConfigSGIX not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-GLXFBConfigSGIX glXGetFBConfigFromVisualSGIX(Display *dpy, XVisualInfo *vis)
-{
-	(void) dpy;
-	(void) vis;
-	crWarning("glXGetFBConfigFromVisualSGIX not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-/*
- * GLX 1.3 functions
- */
-GLXFBConfig *glXChooseFBConfig(Display *dpy, int screen, ATTRIB_TYPE *attrib_list, int *nelements)
-{
-	(void) dpy;
-	(void) screen;
-	(void) attrib_list;
-	(void) nelements;
-	crWarning("glXChooseFBConfig not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-GLXContext glXCreateNewContext(Display *dpy, GLXFBConfig config, int render_type, GLXContext share_list, Bool direct)
-{
-	(void) dpy;
-	(void) config;
-	(void) render_type;
-	(void) share_list;
-	(void) direct;
-	crWarning("glXCreateNewContext not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-GLXPbuffer glXCreatePbuffer(Display *dpy, GLXFBConfig config, ATTRIB_TYPE *attrib_list)
-{
-	(void) dpy;
-	(void) config;
-	(void) attrib_list;
-	crWarning("glXCreatePbuffer not implemented by VMGL/Chromium");
-	return 0;
-}
-
-GLXPixmap glXCreatePixmap(Display *dpy, GLXFBConfig config, Pixmap pixmap, ATTRIB_TYPE *attrib_list)
-{
-	(void) dpy;
-	(void) config;
-	(void) pixmap;
-	(void) attrib_list;
-	crWarning("glXCreatePixmap not implemented by VMGL/Chromium");
-	return 0;
-}
-
-GLXWindow glXCreateWindow(Display *dpy, GLXFBConfig config, Window win, ATTRIB_TYPE *attrib_list)
-{
-	(void) dpy;
-	(void) config;
-	(void) win;
-	(void) attrib_list;
-	crWarning("glXCreateWindow not implemented by VMGL/Chromium");
-	return 0;
-}
-
-void glXDestroyPbuffer(Display *dpy, GLXPbuffer pbuf)
-{
-	(void) dpy;
-	(void) pbuf;
-	crWarning("glXDestroyPbuffer not implemented by VMGL/Chromium");
-}
-void glXDestroyPixmap(Display *dpy, GLXPixmap pixmap)
-{
-	(void) dpy;
-	(void) pixmap;
-	crWarning("glXDestroyPixmap not implemented by VMGL/Chromium");
-}
-
-void glXDestroyWindow(Display *dpy, GLXWindow win)
-{
-	(void) dpy;
-	(void) win;
-	crWarning("glXDestroyWindow not implemented by VMGL/Chromium");
-}
-
-GLXDrawable glXGetCurrentReadDrawable(void)
-{
-	crWarning("glXGetCurrentReadDrawable not implemented by VMGL/Chromium");
-	return 0;
-}
-
-int glXGetFBConfigAttrib(Display *dpy, GLXFBConfig config, int attribute, int *value)
-{
-	(void) dpy;
-	(void) config;
-	(void) attribute;
-	(void) value;
-	crWarning("glXGetFBConfigAttrib not implemented by VMGL/Chromium");
-	return 0;
-}
-
-GLXFBConfig *glXGetFBConfigs(Display *dpy, int screen, int *nelements)
-{
-	(void) dpy;
-	(void) screen;
-	(void) nelements;
-	crWarning("glXGetFBConfigs not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-void glXGetSelectedEvent(Display *dpy, GLXDrawable draw, unsigned long *event_mask)
-{
-	(void) dpy;
-	(void) draw;
-	(void) event_mask;
-	crWarning("glXGetSelectedEvent not implemented by VMGL/Chromium");
-}
-
-XVisualInfo *glXGetVisualFromFBConfig(Display *dpy, GLXFBConfig config)
-{
-	(void) dpy;
-	(void) config;
-	crWarning("glXGetVisualFromFBConfig not implemented by VMGL/Chromium");
-	return NULL;
-}
-
-Bool glXMakeContextCurrent(Display *display, GLXDrawable draw, GLXDrawable read, GLXContext ctx)
-{
-	(void) display;
-	(void) draw;
-	(void) read;
-	(void) ctx;
-	crWarning("glXMakeContextCurrent not implemented by VMGL/Chromium");
-	return 0;
-}
-
-int glXQueryContext(Display *dpy, GLXContext ctx, int attribute, int *value)
-{
-	(void) dpy;
-	(void) ctx;
-	(void) attribute;
-	(void) value;
-	crWarning("glXQueryContext not implemented by VMGL/Chromium");
-	return 0;
-}
-
-void glXQueryDrawable(Display *dpy, GLXDrawable draw, int attribute, unsigned int *value)
-{
-	(void) dpy;
-	(void) draw;
-	(void) attribute;
-	(void) value;
-	crWarning("glXQueryDrawable not implemented by VMGL/Chromium");
-}
-
-void glXSelectEvent(Display *dpy, GLXDrawable draw, unsigned long event_mask)
-{
-	(void) dpy;
-	(void) draw;
-	(void) event_mask;
-	crWarning("glXSelectEvent not implemented by VMGL/Chromium");
-}
-
-
-#endif /* GLX_EXTRAS */
-
-
-#ifdef GLX_SGIX_video_resize
-/* more dummy funcs.  These help when linking with older GLUTs */
-
-int glXBindChannelToWindowSGIX(Display *dpy, int scrn, int chan, Window w)
-{
-	(void) dpy;
-	(void) scrn;
-	(void) chan;
-	(void) w;
-	return 0;
-}
-
-int glXChannelRectSGIX(Display *dpy, int scrn, int chan, int x , int y, int w, int h)
-{
-	(void) dpy;
-	(void) scrn;
-	(void) chan;
-	(void) x;
-	(void) y;
-	(void) w;
-	(void) h;
-	return 0;
-}
-
-int glXQueryChannelRectSGIX(Display *dpy, int scrn, int chan, int *x, int *y, int *w, int *h)
-{
-	(void) dpy;
-	(void) scrn;
-	(void) chan;
-	(void) x;
-	(void) y;
-	(void) w;
-	(void) h;
-	return 0;
-}
-
-int glXQueryChannelDeltasSGIX(Display *dpy, int scrn, int chan, int *dx, int *dy, int *dw, int *dh)
-{
-	(void) dpy;
-	(void) scrn;
-	(void) chan;
-	(void) dx;
-	(void) dy;
-	(void) dw;
-	(void) dh;
-	return 0;
-}
-
-int glXChannelRectSyncSGIX(Display *dpy, int scrn, int chan, GLenum synctype)
-{
-	(void) dpy;
-	(void) scrn;
-	(void) chan;
-	(void) synctype;
-	return 0;
-}
-
-#endif /* GLX_SGIX_video_resize */
-
-
 static WindowInfo* 
 stubCreateWindowInfo(Window ret,
     Display*		display,
@@ -1349,5 +1116,72 @@ extern int XDestroyWindow(
     }
     crHashtableDelete(stub.windowTable, (unsigned int) winInfo->drawable, NULL);
     crFree(winInfo);
+    return ret;
+}
+
+Display *XOpenDisplay(
+    _Xconst char*	 display_name
+)
+{
+    Display * ret;
+
+    CRASSERT(stub.wsInterface.XDestroyWindow);
+    stubInit();
+
+    ret = stub.wsInterface.XOpenDisplay(display_name);
+    if (!ret)
+        return ret;
+
+    DisplayInfo* displayInfo = add_DisplayInfo(ret, display_name);
+    CRASSERT(displayInfo);
+
+    CRASSERT(crHashtableSearch(stub.displayTable, (unsigned long) ret) == NULL);
+    crHashtableAdd(stub.displayTable, (unsigned long) ret, displayInfo);
+
+    if (stub.currentDisplay == NULL)
+        stub.currentDisplay = displayInfo;
+
+    return ret;
+}
+
+DisplayInfo* add_DisplayInfo(Display * ret, _Xconst char* display_name)
+{
+    DisplayInfo* displayInfo = crAlloc(sizeof(DisplayInfo));
+    if (!displayInfo)
+        return NULL;
+
+    const char * name = display_name ? display_name : crGetenv("DISPLAY");
+    CRASSERT(name);
+
+    displayInfo->dpy = ret;
+    displayInfo->currentDpy = ret;
+    crStrncpy(displayInfo->currentDisplay, name, sizeof(displayInfo->currentDisplay));
+    crStrncpy(displayInfo->display, name, sizeof(displayInfo->display));
+
+    return displayInfo;
+}
+void remove_DisplayInfo(DisplayInfo * displayInfo)
+{
+    crFree(displayInfo);
+}
+
+int XCloseDisplay(
+    Display*		display
+)
+{
+    int ret;
+
+    DisplayInfo* displayInfo = trans_DisplayInfo(display);
+
+    ret = stub.wsInterface.XCloseDisplay(displayInfo->currentDpy);
+    CRASSERT(ret == 0);
+
+    crHashtableDelete(stub.displayTable, (unsigned long) display, NULL);
+
+    if (stub.currentDisplay == displayInfo)
+        stub.currentDisplay = NULL;
+
+    remove_DisplayInfo(displayInfo);
+
     return ret;
 }

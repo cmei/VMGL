@@ -224,6 +224,8 @@ print """
 x11_functions = [
     "XCreateWindow",
     "XDestroyWindow",
+    "XOpenDisplay",
+    "XCloseDisplay",
 ]
 
 useful_glx_functions = [

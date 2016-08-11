@@ -59,23 +59,6 @@ stubCheckMultithread( void )
 }
 #endif
 
-static const char * NATIVE_DISPLAY_STR; 
-static Display * NATIVE_DISPLAY; 
-Display * getNativeDisplay(void)
-{
-    if (NATIVE_DISPLAY)
-        return NATIVE_DISPLAY;
-    NATIVE_DISPLAY_STR = crGetenv("CR_NATIVE_DISPLAY");
-    if (!NATIVE_DISPLAY_STR) {
-        crError("In order to render to a native display, set CR_NATIVE_DISPLAY to your local XServer display");
-    }
-    NATIVE_DISPLAY = XOpenDisplay(NATIVE_DISPLAY_STR);
-    if (!NATIVE_DISPLAY) {
-        crError("Failed to open native display");
-    }
-    return NULL;
-}
-
 static int HAS_NATIVE_DISPLAY = -1;
 int hasNativeDisplay(void)
 {
@@ -205,9 +188,9 @@ GLint stubReuseWindow(  const char *dpyName, GLint visBits, GLint spuWin )
 stubIsWindowVisible( const WindowInfo *win )
 {
 #if defined(GLX)
-    if (win->dpy) {
+    if (win->displayInfo->currentDpy) {
 	XWindowAttributes attr;
-	XGetWindowAttributes(win->dpy, win->drawable, &attr);
+	XGetWindowAttributes(win->displayInfo->currentDpy, win->nativeDrawable, &attr);
 	return (attr.map_state != IsUnmapped);
     }
     else {
@@ -232,34 +215,46 @@ stubGetWindowInfo( GLXDrawable drawable )
 }
 
 
+void remove_ContextInfo(ContextInfo * contextInfo)
+{
+    crHashtableDelete(stub.contextTable, contextInfo->id, NULL);
+    crMemZero(contextInfo, sizeof(ContextInfo));  /* just to be safe */
+    crFree(contextInfo);
+}
 /**
  * Allocate a new ContextInfo object, initialize it, put it into the
  * context hash table.  If type==CHROMIUM, call the head SPU's
  * CreateContext() function too.
  */
-    ContextInfo *
-stubNewContext( const char *dpyName, GLint visBits, ContextType type,
-	unsigned long shareCtx )
+ContextInfo *
+add_ContextInfo(DisplayInfo* displayInfo, 
+        VisualInfo *visualInfo, 
+        GLint visBits, ContextType type,
+        Bool direct,
+	GLXContext shareList)
 {
-    GLint spuContext = -1, spuShareCtx = 0;
+    GLint spuContext = -1;
     ContextInfo *context;
+    ContextInfo* shareContext = NULL;
     GLXContext nativeContext = 0;
 
-    if (shareCtx > 0) {
-	/* translate shareCtx to a SPU context ID */
-	context = (ContextInfo *)
-	    crHashtableSearch(stub.contextTable, shareCtx);
-	if (context)
-	    spuShareCtx = context->spuContext;
+    visBits = GetVisBits(visualInfo);
+
+    if (shareList) {
+	/* translate shareList to a SPU context ID */
+        shareContext = trans_ContextInfo(shareList, 0);
     }
 
     if (stub.vm_mode == VM_LIVE_MIGRATION) {
-	spuContext = stub.spu->dispatch_table.CreateContext(dpyName, visBits, spuShareCtx);
+	spuContext = stub.spu->dispatch_table.CreateContext(displayInfo->display, visBits, 
+                shareContext ? shareContext->spuContext : 0);
 	if (spuContext < 0)
             return NULL;
     } else {
+        // TODO: I'm not sure what spuShareCtx is for...
+        CRASSERT(!shareContext);
         CRASSERT(stub.vm_mode == VM_NATIVE);
-        nativeContext = stub.wsInterface.glXCreateContext(getNativeDisplay(), visBits, spuShareCtx, GL_TRUE);
+        nativeContext = stub.wsInterface.glXCreateContext(displayInfo->currentDpy, visualInfo->currentVisual, 0, GL_TRUE);
         CRASSERT(nativeContext != 0);
     }
 
@@ -269,21 +264,17 @@ stubNewContext( const char *dpyName, GLint visBits, ContextType type,
 	return NULL;
     }
 
-    if (!dpyName)
-	dpyName = "";
-
     context->id = stub.freeContextNumber++;
     context->type = type;
     context->spuContext = spuContext;
     context->nativeContext = nativeContext;
     context->visBits = visBits;
     context->currentDrawable = NULL;
-    crStrncpy(context->dpyName, dpyName, MAX_DPY_NAME);
-    context->dpyName[MAX_DPY_NAME-1] = 0;
-
+    context->displayInfo = displayInfo;
+    context->visualInfo = visualInfo;
+    context->direct = direct;
 #if defined(GLX)
-    context->share = (ContextInfo *)
-    	crHashtableSearch(stub.contextTable, (unsigned long) shareCtx);
+    context->share = (ContextInfo *) crHashtableSearch(stub.contextTable, (unsigned long) shareList);
 #endif
 
     crHashtableAdd(stub.contextTable, context->id, (void *) context);
@@ -303,20 +294,20 @@ InstantiateNativeContext( WindowInfo *window, ContextInfo *context )
 
 	/* sort out context sharing here */
 	if (context->share) {
-			if (context->glxContext != context->share->glxContext) {
+			if (context->nativeContext != context->share->nativeContext) {
 					crWarning("glXCreateContext() is trying to share a non-existant "
 										"GLX context.  Setting share context to zero.");
 					shareCtx = 0;
 			}
 			else {
-					shareCtx = context->glxContext;
+					shareCtx = context->nativeContext;
 			}
 	}
 
-	context->glxContext = stub.wsInterface.glXCreateContext(getNativeDisplay(),
-				 context->visual, shareCtx, context->direct );
+	context->nativeContext = stub.wsInterface.glXCreateContext(context->displayInfo->currentDpy,
+				 context->visualInfo->currentVisual, shareCtx, context->direct);
 
-	return context->glxContext ? GL_TRUE : GL_FALSE;
+	return context->nativeContext ? GL_TRUE : GL_FALSE;
 #endif
 }
 
@@ -333,11 +324,11 @@ stubGetWindowGeometry( const WindowInfo *window, int *x, int *y,
 	Window root, child;
 	unsigned int border, depth;
 	if (!window
-			|| !window->dpy
-			|| !window->drawable
-			|| !XGetGeometry(window->dpy, window->drawable, &root,
+			|| !window->displayInfo->currentDpy
+			|| !window->nativeDrawable
+			|| !XGetGeometry(window->displayInfo->currentDpy, window->displayInfo->currentDpy, &root,
 											 x, y, w, h, &border, &depth)
-			|| !XTranslateCoordinates(window->dpy, window->drawable, root,
+			|| !XTranslateCoordinates(window->displayInfo->currentDpy, window->nativeDrawable, root,
 																*x, *y, x, y, &child)) {
 		*x = *y = 0;
 		*w = *h = 0;
@@ -589,7 +580,7 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
             context->type = CHROMIUM;
 
             context->spuContext
-                = stub.spu->dispatch_table.CreateContext( context->dpyName,context->visBits,spuShareCtx );
+                = stub.spu->dispatch_table.CreateContext(context->displayInfo->display, context->visBits, spuShareCtx);
             if (window->spuWindow == -1)
                 window->spuWindow = stub.spu->dispatch_table.WindowCreate( window->dpyName, context->visBits );
         }
@@ -618,7 +609,8 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
          * Native OpenGL MakeCurrent().
          */
 #if defined(GLX)
-        retVal = (GLboolean) stub.wsInterface.glXMakeCurrent(getNativeDisplay(), window->nativeDrawable, context->glxContext );
+        retVal = (GLboolean) stub.wsInterface.glXMakeCurrent(context->displayInfo->currentDpy, 
+                window->nativeDrawable, context->nativeContext);
 #endif
     }
     else {
@@ -708,19 +700,28 @@ stubMakeCurrent( WindowInfo *window, ContextInfo *context )
 }
 
 
+ContextInfo* trans_ContextInfo(GLXContext contextId, int returnNullOnFail)
+{
+    ContextInfo *context;
+    context = (ContextInfo *) crHashtableSearch(stub.contextTable, (unsigned long) contextId);
+    if (!context && returnNullOnFail) {
+        return NULL;
+    }
+    CRASSERT(context);
+    CRASSERT(context->id == (unsigned long) contextId);
+    return context;
+}
 
 void
 stubDestroyContext( unsigned long contextId )
 {
 	ContextInfo *context;
 
-	context = (ContextInfo *) crHashtableSearch(stub.contextTable, contextId);
-
-	CRASSERT(context);
+        context = trans_ContextInfo((GLXContext) contextId, 0);
 
 	if (stub.vm_mode == VM_NATIVE) {
 #if defined(GLX)
-		stub.wsInterface.glXDestroyContext(getNativeDisplay(), context->glxContext );
+            stub.wsInterface.glXDestroyContext(context->displayInfo->currentDpy, context->nativeContext);
 #endif
 	}
 	else if (stub.vm_mode == VM_LIVE_MIGRATION) {
@@ -733,8 +734,6 @@ stubDestroyContext( unsigned long contextId )
 		stub.currentContext = NULL;
 	}
 
-	crMemZero(context, sizeof(ContextInfo));  /* just to be safe */
-	crHashtableDelete(stub.contextTable, contextId, crFree);
 }
 
 
@@ -742,7 +741,7 @@ void
 stubSwapBuffers( const WindowInfo *window, GLint flags )
 {
 	if (!window)
-		return;
+            return;
 
 	/* Determine if this window is being rendered natively or through
 	 * Chromium.
@@ -752,7 +751,7 @@ stubSwapBuffers( const WindowInfo *window, GLint flags )
 		/*printf("*** Swapping native window %d\n", (int) drawable);*/
 #if defined(GLX)
 		/* stub.wsInterface.glXSwapBuffers(getNativeDisplay(), window->nativeDrawable ); */
-		stub.wsInterface.glXSwapBuffers(getNativeDisplay(), window->nativeDrawable );
+		stub.wsInterface.glXSwapBuffers(window->displayInfo->currentDpy, window->nativeDrawable);
 #endif
 	}
 	else if (stub.vm_mode == VM_LIVE_MIGRATION) {

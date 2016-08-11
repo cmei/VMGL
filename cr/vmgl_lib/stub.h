@@ -49,25 +49,33 @@ typedef enum
 
 #define MAX_DPY_NAME 1000
 
+typedef enum {
+    VM_NATIVE,
+    VM_LIVE_MIGRATION,
+} VMMode;
+
 typedef struct context_info_t ContextInfo;
 typedef struct window_info_t WindowInfo;
+typedef struct visual_info_t VisualInfo;
+typedef struct display_info_t DisplayInfo;
 
 struct context_info_t
 {
-	char dpyName[MAX_DPY_NAME];
 	GLint spuContext;  /* returned by head SPU's CreateContext() */
 	ContextType type;  /* CHROMIUM, NATIVE or UNDECIDED */
 	unsigned long id;          /* the client-visible handle */
 	GLint visBits;
 	WindowInfo *currentDrawable;
 #if defined(GLX)
-	Display *dpy;
+	DisplayInfo *displayInfo;
 	ContextInfo *share;
-	XVisualInfo *visual;
+        VisualInfo *visualInfo;
 	Bool direct;
-	GLXContext glxContext;
+	GLXContext nativeContext;
 #endif
 };
+ContextInfo* trans_ContextInfo(GLXContext contextId, int returnNullOnFail);
+void remove_ContextInfo(ContextInfo * contextInfo);
 
 struct window_info_t
 {
@@ -78,21 +86,53 @@ struct window_info_t
 	GLint spuWindow;       /* returned by head SPU's WindowCreate() */
 	GLboolean mapped;
 #if defined(GLX)
-	Display *dpy;
-	GLXDrawable drawable;
+        DisplayInfo * displayInfo;
+	GLXDrawable drawabl;
         /* On resume from live migration, reset this to a new xwindow created from the new xserver.
          */
         Window nativeDrawable;
 #endif
 };
 
-typedef enum {
-    VM_NATIVE,
-    VM_LIVE_MIGRATION,
-} VMMode;
+/**
+ * Keep a list of structures which associates X visual IDs with
+ * Chromium visual bitmasks.
+ */
+struct visual_info_t {
+        // The value returned to the user of the API (may no longer be valid).
+        XVisualInfo* visual;
+        // The value currently active with the X server we're connected to (must be valid).
+        // Gets reset when switching to VM_NATIVE or VM_LIVE_MIGRATION.
+        XVisualInfo* currentVisual;
+        // Information for reconstructing Visual's when we switch between VM_NATIVE and 
+        // VM_LIVE_MIGRATION.
+	int visBits;
+        int * attribList;
+        int attribListSize;
+        VMMode vm_mode;
+};
+VisualInfo* trans_VisualInfo(XVisualInfo *vis);
+
+struct display_info_t {
+    /* dpy:        The value returned by XOpenDisplay(...) when it was first called.
+     * currentDpy: The current value of XOpenDisplay(...) 
+     *             (switches during VM_NATIVE <-> VM_LIVE_MIGRATION).
+     */
+    Display * dpy;
+    Display * currentDpy;
+
+    char display[64];
+    char currentDisplay[64];
+};
+DisplayInfo* add_DisplayInfo(Display * ret, _Xconst char* display_name);
+void remove_DisplayInfo(DisplayInfo * displayInfo);
+DisplayInfo* trans_DisplayInfo(Display *dpy);
 
 /* "Global" variables for the stub library */
 typedef struct {
+        DisplayInfo* currentDisplay;
+        GLXDrawable currentDrawable;
+
 	/* the first SPU in the SPU chain on this app node */
 	SPU *spu;
 
@@ -129,13 +169,25 @@ typedef struct {
 
 	/* contexts */
 	int freeContextNumber;
+        /* (user visible) context id (generated in add_ContextInfo, return by glXCreateContext) -> ContextInfo*
+         */
 	CRHashTable *contextTable;
 	ContextInfo *currentContext; /* may be NULL */
 
 	/* windows */
 	CRHashTable *windowTable;
 
-        /* VM migration */
+        /* 
+         * VM migration 
+         */
+
+        /* original (user visible) Display* -> DisplayInfo* 
+         */
+	CRHashTable *displayTable;
+        /* original (user visible) XVisualInfo* -> VisualInfo* 
+         */
+	CRHashTable *visualTable;
+
         VMMode vm_mode;
         SPU* render_spu;
 } Stub;
@@ -156,7 +208,13 @@ extern void stubUseXFont( Display *dpy, Font font, int first, int count, int lis
 
 
 extern void stubSetDispatch( SPUDispatchTable *table );
-extern ContextInfo *stubNewContext( const char *dpyName, GLint visBits, ContextType type, unsigned long shareCtx );
+GLint GetVisBits(VisualInfo* visualInfo);
+ContextInfo *
+add_ContextInfo(DisplayInfo* displayInfo, 
+        VisualInfo *visualInfo, 
+        GLint visBits, ContextType type,
+        Bool direct,
+	GLXContext shareList);
 extern void stubDestroyContext( unsigned long contextId );
 extern GLboolean stubMakeCurrent( WindowInfo *window, ContextInfo *context );
 extern GLint stubNewWindow( const char *dpyName, GLint visBits );
@@ -167,6 +225,8 @@ extern GLboolean stubIsWindowVisible( const WindowInfo *win );
 extern void stubInit(void);
 extern int hasNativeDisplay(void);
 extern Display * getNativeDisplay(void);
+
+extern VisualInfo * FindVisualInfo(XVisualInfo* vis);
 
 extern void APIENTRY stub_GetChromiumParametervCR( GLenum target, GLuint index, GLenum type, GLsizei count, GLvoid *values );
 

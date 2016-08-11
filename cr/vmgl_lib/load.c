@@ -188,6 +188,8 @@ static void stubInitVars(void)
 	/* At the very least we want CR_RGB_BIT. */
 	stub.haveNativeOpenGL = GL_FALSE;
 	stub.spu = NULL;
+        stub.currentDisplay = NULL;
+        stub.currentDrawable = 0;
 	stub.appDrawCursor = 0;
 	stub.minChromiumWindowWidth = 0;
 	stub.minChromiumWindowHeight = 0;
@@ -210,6 +212,9 @@ static void stubInitVars(void)
 	stub.currentContext = NULL;
 
 	stub.windowTable = crAllocHashtable();
+
+	stub.displayTable = crAllocHashtable();
+
         stub.vm_mode = VM_NATIVE;
 
 	defaultWin = (WindowInfo *) crCalloc(sizeof(WindowInfo));

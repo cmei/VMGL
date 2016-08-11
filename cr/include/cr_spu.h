@@ -179,6 +179,13 @@ typedef int (*XDestroyWindowFunc_t)(
     Window		/* w */
 );
 
+typedef int (*XCloseDisplayFunc_t)(
+    Display*		/* display */
+);
+
+typedef Display* (*XOpenDisplayFunc_t)(
+    _Xconst char*	/* display_name */
+);
 
 /**
  * Package up the GLX function pointers into a struct.  We use
@@ -228,6 +235,8 @@ typedef struct {
         /* X11 */
         XCreateWindowFunc_t XCreateWindow;
         XDestroyWindowFunc_t XDestroyWindow;
+        XOpenDisplayFunc_t XOpenDisplay;
+        XCloseDisplayFunc_t XCloseDisplay;
 } crOpenGLInterface;
 
 
