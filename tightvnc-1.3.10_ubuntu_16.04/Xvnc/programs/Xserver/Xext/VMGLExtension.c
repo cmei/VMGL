@@ -65,7 +65,7 @@ Bool (*DestroyWindow_wrap[MAXSCREENS])();
 extern WindowPtr *WindowTable;
 
 /* Helper */
-inline char *IP2String(in_addr_t address) {
+char *IP2String(in_addr_t address) {
     struct in_addr tmp;
     tmp.s_addr= htonl(address);
     return ((char *) inet_ntoa(tmp));
