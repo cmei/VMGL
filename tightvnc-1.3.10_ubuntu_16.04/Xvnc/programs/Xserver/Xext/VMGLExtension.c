@@ -40,6 +40,9 @@
 #include <errno.h>
 #include <stdio.h>
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
 /* List of windows to watch on behalf of a gl stub */
 typedef struct GlWindowWatcher_struct {
     unsigned int XWindow;
@@ -65,10 +68,10 @@ Bool (*DestroyWindow_wrap[MAXSCREENS])();
 extern WindowPtr *WindowTable;
 
 /* Helper */
-char *IP2String(in_addr_t address) {
+char* IP2String(in_addr_t address) {
     struct in_addr tmp;
-    tmp.s_addr= htonl(address);
-    return ((char *) inet_ntoa(tmp));
+    tmp.s_addr = htonl(address);
+    return (char*) inet_ntoa(tmp);
 }
 
 /* This function does the communication with a gl Stub */
@@ -163,9 +166,9 @@ Bool RemoveGlStub(in_addr_t address, in_addr_t port) {
             }
 
             tmp->next = ptr->next;
-            xfree(ptr); /*
-                           fprintf(stderr, "GlStub for address %s:%hu removed\n",
-                           IP2String(address), (unsigned short) port);*/
+            xfree(ptr);
+            fprintf(stderr, "GlStub for address %s:%hu removed\n",
+                    IP2String(address), (unsigned short) port);
             return TRUE;
         }
 
@@ -191,7 +194,7 @@ Bool AddGlStub(in_addr_t address, in_addr_t port) {
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = htonl(address);
     if (connect(sock, (struct sockaddr *) &addr, sizeof(struct sockaddr_in)) < 0) {
-        fprintf(stderr, "Failed to connect to address %s:%hu: %s\n",IP2String(address),
+        fprintf(stderr, "Failed to connect to address %s:%hu: %s\n", IP2String(address),
                 (unsigned short) port, strerror(errno));
         return FALSE;
     }
@@ -224,7 +227,7 @@ Bool AddGlStub(in_addr_t address, in_addr_t port) {
     tmp->WindowWatchersList->next = NULL;
     tmp->next = GlStubWatchersList->next;
     GlStubWatchersList->next = tmp;
-    fprintf(stderr, "Added GlStub for address %s:%d\n", 
+    fprintf(stderr, "Added GlStub for address %s:%hu\n", 
             IP2String(address), (unsigned short) port);
     return TRUE;
 }
